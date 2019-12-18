@@ -1,6 +1,8 @@
 package cbytecache
 
-import "sync"
+import (
+	"sync"
+)
 
 type shard struct {
 	service uint32
@@ -8,9 +10,10 @@ type shard struct {
 	// first variant - simple map
 	hmap map[uint64][]byte
 	// second variant - pair of slices
-	addr   []uint64
-	data   [][]byte
-	offset uint64
+	addr    []uint64
+	data    [][]byte
+	offset  uint64
+	lrLimit uint64
 	// third variant - ?
 	// ...
 }
@@ -59,6 +62,98 @@ func (s *shard) get1(hash uint64) ([]byte, error) {
 	defer s.mux.RUnlock()
 	var i uint64
 	for i = 0; i < s.offset; i++ {
+		if s.addr[i] == hash {
+			return s.data[i], nil
+		}
+	}
+	return nil, nil
+}
+
+func (s *shard) set2(hash uint64, b []byte) error {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	var i uint64
+	for i = 0; i < s.lrLimit; i += 8 {
+		if s.addr[i] == hash {
+			s.data[i] = b
+			return nil
+		}
+		if s.addr[i+1] == hash {
+			s.data[i+1] = b
+			return nil
+		}
+		if s.addr[i+2] == hash {
+			s.data[i+2] = b
+			return nil
+		}
+		if s.addr[i+3] == hash {
+			s.data[i+3] = b
+			return nil
+		}
+		if s.addr[i+4] == hash {
+			s.data[i+4] = b
+			return nil
+		}
+		if s.addr[i+5] == hash {
+			s.data[i+5] = b
+			return nil
+		}
+		if s.addr[i+6] == hash {
+			s.data[i+6] = b
+			return nil
+		}
+		if s.addr[i+7] == hash {
+			s.data[i+7] = b
+			return nil
+		}
+	}
+	for i := s.lrLimit; i < s.offset; i++ {
+		if s.addr[i] == hash {
+			s.data[i] = b
+			return nil
+		}
+	}
+	s.addr = append(s.addr, hash)
+	s.data = append(s.data, b)
+	s.offset++
+	if s.offset%8 == 0 {
+		s.lrLimit += 8
+	}
+	return nil
+}
+
+func (s *shard) get2(hash uint64) ([]byte, error) {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	var i uint64
+	for i = 0; i < s.lrLimit; i += 8 {
+		if s.addr[i] == hash {
+			return s.data[i], nil
+		}
+		if s.addr[i+1] == hash {
+			return s.data[i+1], nil
+		}
+		if s.addr[i+2] == hash {
+			return s.data[i+2], nil
+		}
+		if s.addr[i+3] == hash {
+			return s.data[i+3], nil
+		}
+		if s.addr[i+4] == hash {
+			return s.data[i+4], nil
+		}
+		if s.addr[i+5] == hash {
+			return s.data[i+5], nil
+		}
+		if s.addr[i+6] == hash {
+			return s.data[i+6], nil
+		}
+		if s.addr[i+7] == hash {
+			return s.data[i+7], nil
+		}
+
+	}
+	for i = s.lrLimit; i < s.offset; i++ {
 		if s.addr[i] == hash {
 			return s.data[i], nil
 		}

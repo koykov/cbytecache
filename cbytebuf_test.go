@@ -1,6 +1,7 @@
 package cbytecache
 
 import (
+	"bytes"
 	"math/rand"
 	"strings"
 	"testing"
@@ -36,7 +37,10 @@ func BenchmarkCbcHashMap(b *testing.B) {
 		key := randKey(20)
 		data := dataPool[rand.Intn(len(dataPool))]
 		_ = c.Set(key, data)
-		_, _ = c.Get(key)
+		r, _ := c.Get(key)
+		if !bytes.Equal(r, data) {
+			b.Error(r, data)
+		}
 	}
 }
 
@@ -50,6 +54,26 @@ func BenchmarkCbcSlicePair(b *testing.B) {
 		key := randKey(20)
 		data := dataPool[rand.Intn(len(dataPool))]
 		_ = c.Set(key, data)
-		_, _ = c.Get(key)
+		r, _ := c.Get(key)
+		if !bytes.Equal(r, data) {
+			b.Error(r, data)
+		}
+	}
+}
+
+func BenchmarkCbcSlicePairLr(b *testing.B) {
+	conf := Config{Shards: 16}
+	c := NewCByteCache(&conf)
+	c.Alg = AlgSlicePairLr
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		key := randKey(20)
+		data := dataPool[rand.Intn(len(dataPool))]
+		_ = c.Set(key, data)
+		r, _ := c.Get(key)
+		if !bytes.Equal(r, data) {
+			b.Error(r, data)
+		}
 	}
 }

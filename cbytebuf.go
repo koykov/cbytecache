@@ -10,8 +10,9 @@ type CByteCache struct {
 }
 
 const (
-	AlgHashMap   = 0
-	AlgSlicePair = 1
+	AlgHashMap     = 0
+	AlgSlicePair   = 1
+	AlgSlicePairLr = 2
 )
 
 func NewCByteCache(config *Config) *CByteCache {
@@ -32,10 +33,12 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	hash := fastconv.Fnv64aString(key)
 	shard := c.shards[hash&c.mask]
 	switch c.Alg {
-	case 0:
+	case AlgHashMap:
 		return shard.set0(hash, data)
-	case 1:
+	case AlgSlicePair:
 		return shard.set1(hash, data)
+	case AlgSlicePairLr:
+		return shard.set2(hash, data)
 	}
 	return nil
 }
@@ -44,10 +47,13 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 	hash := fastconv.Fnv64aString(key)
 	shard := c.shards[hash&c.mask]
 	switch c.Alg {
-	case 0:
+	case AlgHashMap:
 		return shard.get0(hash)
-	case 1:
+	case AlgSlicePair:
 		return shard.get1(hash)
+	case AlgSlicePairLr:
+		return shard.get2(hash)
+
 	}
 	return nil, nil
 }
