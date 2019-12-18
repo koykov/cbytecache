@@ -10,9 +10,10 @@ type CByteCache struct {
 }
 
 const (
-	AlgHashMap     = 0
-	AlgSlicePair   = 1
-	AlgSlicePairLr = 2
+	AlgHashMap      = 0
+	AlgSlicePair    = 1
+	AlgSlicePairLr  = 2
+	AlgHashEntryMap = 3
 )
 
 func NewCByteCache(config *Config) *CByteCache {
@@ -39,6 +40,8 @@ func (c *CByteCache) Set(key string, data []byte) error {
 		return shard.set1(hash, data)
 	case AlgSlicePairLr:
 		return shard.set2(hash, data)
+	case AlgHashEntryMap:
+		return shard.set3(hash, data)
 	}
 	return nil
 }
@@ -53,7 +56,8 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 		return shard.get1(hash)
 	case AlgSlicePairLr:
 		return shard.get2(hash)
-
+	case AlgHashEntryMap:
+		return shard.get3(hash)
 	}
 	return nil, nil
 }
