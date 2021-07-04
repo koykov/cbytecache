@@ -1,7 +1,6 @@
 package cbytecache
 
 import (
-	"bytes"
 	"math/rand"
 	"strings"
 	"testing"
@@ -18,8 +17,17 @@ var (
 		[]byte(`{"quiz":{"sport":{"q1":{"question":"Which one is correct team name in NBA?","options":["New York Bulls","Los Angeles Kings","Golden State Warriros","Huston Rocket"],"answer":"Huston Rocket"}},"maths":{"q1":{"question":"5 + 7 = ?","options":["10","11","12","13"],"answer":"12"},"q2":{"question":"12 - 8 = ?","options":["1","2","3","4"],"answer":"4"}}}}`),
 	}
 	chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	keys  = fillKeys()
 	key   strings.Builder
 )
+
+func fillKeys() []string {
+	keys := make([]string, 10000000)
+	for i := 0; i < 10000000; i++ {
+		keys[i] = randKey(20)
+	}
+	return keys
+}
 
 func randKey(n int) string {
 	rand.Seed(time.Now().UnixNano())
@@ -36,29 +44,40 @@ func cbcBench(b *testing.B, alg uint) {
 	c.Alg = alg
 	b.ResetTimer()
 	b.ReportAllocs()
+	ki := 0
+	var key string
 	for i := 0; i < b.N; i++ {
-		key := randKey(20)
+		//key := randKey(20)
+		if i < 10000000 {
+			key = keys[ki]
+			ki++
+		} else {
+			ki = 0
+			key = keys[ki]
+		}
+
 		data := dataPool[rand.Intn(len(dataPool))]
 		_ = c.Set(key, data)
-		r, _ := c.Get(key)
-		if !bytes.Equal(r, data) {
-			b.Error(r, data)
-		}
+		//_, _ = c.Get(key)
+		//r, _ := c.Get(key)
+		//if !bytes.Equal(r, data) {
+		//	b.Error(r, data)
+		//}
 	}
 }
 
 func BenchmarkCbcHashMap(b *testing.B) {
-	cbcBench(b, AlgHashMap)
+	// cbcBench(b, AlgHashMap)
 }
 
 func BenchmarkCbcSlicePair(b *testing.B) {
-	cbcBench(b, AlgSlicePair)
+	// cbcBench(b, AlgSlicePair)
 }
 
 func BenchmarkCbcSlicePairLr(b *testing.B) {
-	cbcBench(b, AlgSlicePairLr)
+	// cbcBench(b, AlgSlicePairLr)
 }
 
 func BenchmarkCbcHashEntryMap(b *testing.B) {
-	cbcBench(b, AlgHashEntryMap)
+	// cbcBench(b, AlgHashEntryMap)
 }

@@ -9,3 +9,7 @@ const (
 	Gigabyte            = Megabyte * 1024
 	Terabyte            = Gigabyte * 1024
 )
+
+var (
+	_ = Terabyte
+)

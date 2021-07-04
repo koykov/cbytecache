@@ -9,13 +9,6 @@ type CByteCache struct {
 	Alg    uint
 }
 
-const (
-	AlgHashMap      = 0
-	AlgSlicePair    = 1
-	AlgSlicePairLr  = 2
-	AlgHashEntryMap = 3
-)
-
 func NewCByteCache(config *Config) *CByteCache {
 	shards := make([]*shard, config.Shards)
 	for i := range shards {
@@ -33,31 +26,11 @@ func NewCByteCache(config *Config) *CByteCache {
 func (c *CByteCache) Set(key string, data []byte) error {
 	hash := fastconv.Fnv64aString(key)
 	shard := c.shards[hash&c.mask]
-	switch c.Alg {
-	case AlgHashMap:
-		return shard.set0(hash, data)
-	case AlgSlicePair:
-		return shard.set1(hash, data)
-	case AlgSlicePairLr:
-		return shard.set2(hash, data)
-	case AlgHashEntryMap:
-		return shard.set3(hash, data)
-	}
-	return nil
+	return shard.set(hash, data)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {
 	hash := fastconv.Fnv64aString(key)
 	shard := c.shards[hash&c.mask]
-	switch c.Alg {
-	case AlgHashMap:
-		return shard.get0(hash)
-	case AlgSlicePair:
-		return shard.get1(hash)
-	case AlgSlicePairLr:
-		return shard.get2(hash)
-	case AlgHashEntryMap:
-		return shard.get3(hash)
-	}
-	return nil, nil
+	return shard.get(hash)
 }
