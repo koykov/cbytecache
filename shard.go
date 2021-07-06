@@ -34,11 +34,12 @@ func (s *shard) set(hash uint64, b []byte) error {
 	return nil
 }
 
-func (s *shard) get(hash uint64) ([]byte, error) {
+func (s *shard) get(dst []byte, hash uint64) ([]byte, error) {
 	s.mux.RLock()
+	defer s.mux.RUnlock()
 	if bptr, ok := s.items[hash]; ok {
-		return bptr.Bytes(), nil
+		dst = append(dst, bptr.Bytes()...)
+		return dst, nil
 	}
-	s.mux.RUnlock()
-	return nil, ErrNotFound
+	return dst, ErrNotFound
 }

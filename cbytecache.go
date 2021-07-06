@@ -30,7 +30,11 @@ func (c *CByteCache) Set(key string, data []byte) error {
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {
+	return c.GetTo(nil, key)
+}
+
+func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	hash := fastconv.Fnv64aString(key)
 	shard := c.shards[hash&c.mask]
-	return shard.get(hash)
+	return shard.get(dst, hash)
 }
