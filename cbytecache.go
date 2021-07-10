@@ -1,11 +1,11 @@
 package cbytecache
 
-import "github.com/koykov/fastconv"
+import "github.com/koykov/hash/fnv"
 
 type CByteCache struct {
 	config *Config
 	shards []*shard
-	mask   uint64
+	mask   uint32
 	Alg    uint
 }
 
@@ -18,13 +18,13 @@ func NewCByteCache(config *Config) *CByteCache {
 	c := &CByteCache{
 		config: config,
 		shards: shards,
-		mask:   uint64(config.Shards - 1),
+		mask:   uint32(config.Shards - 1),
 	}
 	return c
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
-	hash := fastconv.Fnv64aString(key)
+	hash := fnv.Hash32aString(key)
 	shard := c.shards[hash&c.mask]
 	return shard.set(hash, data)
 }
@@ -34,7 +34,7 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 }
 
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
-	hash := fastconv.Fnv64aString(key)
+	hash := fnv.Hash32aString(key)
 	shard := c.shards[hash&c.mask]
 	return shard.get(dst, hash)
 }
