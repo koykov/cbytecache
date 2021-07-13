@@ -20,7 +20,7 @@ func (s *shard) set(hash uint32, b []byte) error {
 	s.mux.Lock()
 	// ...
 	s.mux.Unlock()
-	return nil
+	return ErrOK
 }
 
 func (s *shard) get(dst []byte, hash uint32) ([]byte, error) {
