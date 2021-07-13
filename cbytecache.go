@@ -9,14 +9,14 @@ type CByteCache struct {
 	Alg    uint
 }
 
-func NewCByteCache(config *Config) *CByteCache {
+func NewCByteCache(config Config) *CByteCache {
 	shards := make([]*shard, config.Shards)
 	for i := range shards {
 		shards[i] = newShard()
 	}
 
 	c := &CByteCache{
-		config: config,
+		config: &config,
 		shards: shards,
 		mask:   uint32(config.Shards - 1),
 	}
