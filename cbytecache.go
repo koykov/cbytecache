@@ -5,7 +5,7 @@ import "github.com/koykov/hash/fnv"
 type CByteCache struct {
 	config *Config
 	shards []*shard
-	mask   uint32
+	mask   uint64
 }
 
 func NewCByteCache(config Config) (*CByteCache, error) {
@@ -21,13 +21,13 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	c := &CByteCache{
 		config: &config,
 		shards: shards,
-		mask:   uint32(config.Shards - 1),
+		mask:   uint64(config.Shards - 1),
 	}
 	return c, ErrOK
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
-	hash := fnv.Hash32aString(key)
+	hash := fnv.Hash64aString(key)
 	shard := c.shards[hash&c.mask]
 	return shard.set(hash, data)
 }
@@ -37,7 +37,7 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 }
 
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
-	hash := fnv.Hash32aString(key)
+	hash := fnv.Hash64aString(key)
 	shard := c.shards[hash&c.mask]
 	return shard.get(dst, hash)
 }

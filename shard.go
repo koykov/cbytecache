@@ -6,26 +6,38 @@ import (
 
 type shard struct {
 	mux   sync.RWMutex
-	items map[uint32]entry
+	index map[uint64]uint32
+	entry []entry
+	arena []arena
 }
 
 func newShard() *shard {
 	s := &shard{
-		items: make(map[uint32]entry),
+		index: make(map[uint64]uint32),
 	}
 	return s
 }
 
-func (s *shard) set(hash uint32, b []byte) error {
+func (s *shard) set(hash uint64, b []byte) error {
 	s.mux.Lock()
 	// ...
 	s.mux.Unlock()
 	return ErrOK
 }
 
-func (s *shard) get(dst []byte, hash uint32) ([]byte, error) {
+func (s *shard) get(dst []byte, hash uint64) ([]byte, error) {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
+	var (
+		idx uint32
+		ok  bool
+	)
+	if idx, ok = s.index[hash]; !ok {
+		return dst, ErrNotFound
+	}
+
 	// ...
+	_ = idx
+
 	return dst, ErrNotFound
 }
