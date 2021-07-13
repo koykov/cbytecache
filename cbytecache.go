@@ -6,10 +6,13 @@ type CByteCache struct {
 	config *Config
 	shards []*shard
 	mask   uint32
-	Alg    uint
 }
 
-func NewCByteCache(config Config) *CByteCache {
+func NewCByteCache(config Config) (*CByteCache, error) {
+	if (config.Shards & (config.Shards - 1)) != 0 {
+		return nil, ErrBadShards
+	}
+
 	shards := make([]*shard, config.Shards)
 	for i := range shards {
 		shards[i] = newShard()
@@ -20,7 +23,7 @@ func NewCByteCache(config Config) *CByteCache {
 		shards: shards,
 		mask:   uint32(config.Shards - 1),
 	}
-	return c
+	return c, ErrOK
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
