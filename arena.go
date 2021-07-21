@@ -8,7 +8,7 @@ import (
 
 type arena reflect.SliceHeader
 
-func (a *arena) bytesRange(offset uint32, length uint16) []byte {
+func (a *arena) bytesRange(offset, length uint32) []byte {
 	h := reflect.SliceHeader{
 		Data: a.Data + uintptr(offset),
 		Len:  int(length),

@@ -49,15 +49,30 @@ func (s *shard) get(dst []byte, hash uint64) ([]byte, error) {
 	arenaIdx := entry.offset / ArenaSize
 	arenaOffset := entry.offset % ArenaSize
 
-	if arenaIdx >= uint32(len(s.arena)) {
+	if arenaIdx >= s.alen() {
 		return dst, ErrNotFound
 	}
 	arena := &s.arena[arenaIdx]
 
-	if ArenaSize-arenaOffset < uint32(entry.length) {
-		dst = append(dst, arena.bytesRange(arenaOffset, entry.length)...)
+	arenaRest := ArenaSize - arenaOffset
+	if arenaRest < uint32(entry.length) {
+		dst = append(dst, arena.bytesRange(arenaOffset, uint32(entry.length))...)
 	} else {
-		// todo implement worst case (entry shared among arenas).
+		// todo test me.
+		rest := uint32(entry.length)
+	loop:
+		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
+		rest -= arenaRest
+		arenaIdx++
+		if arenaIdx >= s.alen() {
+			return dst, ErrEntryCorrupt
+		}
+		arena = &s.arena[arenaIdx]
+		arenaOffset = 0
+		arenaRest = min(rest, ArenaSize)
+		if rest > 0 {
+			goto loop
+		}
 	}
 
 	return dst, ErrOK
@@ -65,4 +80,15 @@ func (s *shard) get(dst []byte, hash uint64) ([]byte, error) {
 
 func (s *shard) now() uint32 {
 	return atomic.LoadUint32(s.nowPtr)
+}
+
+func (s *shard) alen() uint32 {
+	return uint32(len(s.arena))
+}
+
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
 }
