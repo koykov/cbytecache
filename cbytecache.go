@@ -40,7 +40,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	go func() {
 		for {
 			select {
-			// todo implement done signal
+			// todo implement done signal.
 			case <-tickerNow.C:
 				atomic.StoreUint32(c.nowPtr, uint32(time.Now().Unix()))
 			}
