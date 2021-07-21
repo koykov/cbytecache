@@ -5,15 +5,17 @@ import (
 )
 
 type shard struct {
-	mux   sync.RWMutex
-	index map[uint64]uint32
-	entry []entry
-	arena []arena
+	mux    sync.RWMutex
+	index  map[uint64]uint32
+	entry  []entry
+	arena  []arena
+	nowPtr *uint32
 }
 
-func newShard() *shard {
+func newShard(nowPtr *uint32) *shard {
 	s := &shard{
-		index: make(map[uint64]uint32),
+		index:  make(map[uint64]uint32),
+		nowPtr: nowPtr,
 	}
 	return s
 }

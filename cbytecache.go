@@ -2,6 +2,8 @@ package cbytecache
 
 import (
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	"github.com/koykov/hash/fnv"
 )
@@ -10,6 +12,7 @@ type CByteCache struct {
 	config *Config
 	shards []*shard
 	mask   uint64
+	nowPtr *uint32
 }
 
 func NewCByteCache(config Config) (*CByteCache, error) {
@@ -24,16 +27,26 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		return nil, ErrVacuumDur
 	}
 
-	shards := make([]*shard, config.Shards)
-	for i := range shards {
-		shards[i] = newShard()
-	}
-
 	c := &CByteCache{
 		config: &config,
-		shards: shards,
 		mask:   uint64(config.Shards - 1),
 	}
+	c.shards = make([]*shard, config.Shards)
+	for i := range c.shards {
+		c.shards[i] = newShard(c.nowPtr)
+	}
+
+	tickerNow := time.NewTicker(time.Second)
+	go func() {
+		for {
+			select {
+			// todo implement done signal
+			case <-tickerNow.C:
+				atomic.StoreUint32(c.nowPtr, uint32(time.Now().Unix()))
+			}
+		}
+	}()
+
 	return c, ErrOK
 }
 
