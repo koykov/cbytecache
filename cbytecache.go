@@ -20,6 +20,9 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		return nil, fmt.Errorf("%d shards on %d cache size exceeds max shard size %d. Reduce cache size or increase shards count",
 			config.Shards, config.MaxSize, MaxShardSize)
 	}
+	if config.Vacuum <= config.Expire {
+		return nil, ErrVacuumDur
+	}
 
 	shards := make([]*shard, config.Shards)
 	for i := range shards {
