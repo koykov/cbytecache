@@ -3,10 +3,13 @@ package cbytecache
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/koykov/cbytebuf"
 )
 
 type shard struct {
 	mux    sync.RWMutex
+	buf    *cbytebuf.CByteBuf
 	index  map[uint64]uint32
 	entry  []entry
 	arena  []arena
@@ -16,6 +19,7 @@ type shard struct {
 
 func newShard(nowPtr *uint32, config *Config) *shard {
 	s := &shard{
+		buf:    cbytebuf.NewCByteBuf(),
 		index:  make(map[uint64]uint32),
 		config: config,
 		nowPtr: nowPtr,
@@ -23,10 +27,27 @@ func newShard(nowPtr *uint32, config *Config) *shard {
 	return s
 }
 
-func (s *shard) set(h uint64, b []byte) error {
+func (s *shard) set(h uint64, b []byte) (err error) {
+	s.mux.Lock()
+	err = s.setLF(h, b)
+	s.mux.Unlock()
+	return
+}
+
+func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
-	// ...
+	s.buf.ResetLen()
+	if _, err = s.buf.WriteMarshallerTo(m); err != nil {
+		return
+	}
+	err = s.setLF(h, s.buf.Bytes())
+	return
+}
+
+func (s *shard) setLF(h uint64, b []byte) error {
+	_ = h
+	s.m().Set(len(b))
 	return ErrOK
 }
 

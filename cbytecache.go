@@ -68,6 +68,15 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	return shard.set(h, data)
 }
 
+func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
+	if m.Size() > MaxEntrySize {
+		return ErrEntryTooBig
+	}
+	h := c.config.HashFn(key)
+	shard := c.shards[h&c.mask]
+	return shard.setm(h, m)
+}
+
 func (c *CByteCache) Get(key string) ([]byte, error) {
 	return c.GetTo(nil, key)
 }
