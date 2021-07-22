@@ -21,21 +21,21 @@ func newShard(nowPtr *uint32) *shard {
 	return s
 }
 
-func (s *shard) set(hash uint64, b []byte) error {
+func (s *shard) set(h uint64, b []byte) error {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	// ...
 	return ErrOK
 }
 
-func (s *shard) get(dst []byte, hash uint64) ([]byte, error) {
+func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 	var (
 		idx uint32
 		ok  bool
 	)
-	if idx, ok = s.index[hash]; !ok {
+	if idx, ok = s.index[h]; !ok {
 		return dst, ErrNotFound
 	}
 	if idx >= uint32(len(s.entry)) {

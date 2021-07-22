@@ -1,8 +1,11 @@
 package cbytecache
 
-import "time"
+import (
+	"time"
+)
 
 type Config struct {
+	HashFn   func(string) uint64
 	Shards   uint
 	ForceSet bool
 	Expire   time.Duration

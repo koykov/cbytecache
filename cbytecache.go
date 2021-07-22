@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-
-	"github.com/koykov/hash/fnv"
 )
 
 type CByteCache struct {
@@ -16,6 +14,9 @@ type CByteCache struct {
 }
 
 func NewCByteCache(config Config) (*CByteCache, error) {
+	if config.HashFn == nil {
+		return nil, ErrBadHashFn
+	}
 	if (config.Shards & (config.Shards - 1)) != 0 {
 		return nil, ErrBadShards
 	}
@@ -54,9 +55,9 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	if len(data) > MaxEntrySize {
 		return ErrEntryTooBig
 	}
-	hash := fnv.Hash64aString(key)
-	shard := c.shards[hash&c.mask]
-	return shard.set(hash, data)
+	h := c.config.HashFn(key)
+	shard := c.shards[h&c.mask]
+	return shard.set(h, data)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {
@@ -64,7 +65,7 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 }
 
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
-	hash := fnv.Hash64aString(key)
-	shard := c.shards[hash&c.mask]
-	return shard.get(dst, hash)
+	h := c.config.HashFn(key)
+	shard := c.shards[h&c.mask]
+	return shard.get(dst, h)
 }
