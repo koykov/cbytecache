@@ -10,12 +10,14 @@ type shard struct {
 	index  map[uint64]uint32
 	entry  []entry
 	arena  []arena
+	logger Logger
 	nowPtr *uint32
 }
 
-func newShard(nowPtr *uint32) *shard {
+func newShard(nowPtr *uint32, logger Logger) *shard {
 	s := &shard{
 		index:  make(map[uint64]uint32),
+		logger: logger,
 		nowPtr: nowPtr,
 	}
 	return s

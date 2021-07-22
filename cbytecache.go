@@ -28,13 +28,17 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		return nil, ErrVacuumDur
 	}
 
+	if config.Logger == nil {
+		config.Logger = &DummyLog{}
+	}
+
 	c := &CByteCache{
 		config: &config,
 		mask:   uint64(config.Shards - 1),
 	}
 	c.shards = make([]*shard, config.Shards)
 	for i := range c.shards {
-		c.shards[i] = newShard(c.nowPtr)
+		c.shards[i] = newShard(c.nowPtr, config.Logger)
 	}
 
 	tickerNow := time.NewTicker(time.Second)

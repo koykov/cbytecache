@@ -11,4 +11,5 @@ type Config struct {
 	Expire   time.Duration
 	Vacuum   time.Duration
 	MaxSize  MemorySize
+	Logger   Logger
 }
