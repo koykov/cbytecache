@@ -10,14 +10,14 @@ type shard struct {
 	index  map[uint64]uint32
 	entry  []entry
 	arena  []arena
-	logger Logger
+	config *Config
 	nowPtr *uint32
 }
 
-func newShard(nowPtr *uint32, logger Logger) *shard {
+func newShard(nowPtr *uint32, config *Config) *shard {
 	s := &shard{
 		index:  make(map[uint64]uint32),
-		logger: logger,
+		config: config,
 		nowPtr: nowPtr,
 	}
 	return s
@@ -38,13 +38,16 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		ok  bool
 	)
 	if idx, ok = s.index[h]; !ok {
+		s.m().Miss()
 		return dst, ErrNotFound
 	}
 	if idx >= uint32(len(s.entry)) {
+		s.m().Miss()
 		return dst, ErrNotFound
 	}
 	entry := s.entry[idx]
 	if entry.expire < s.now() {
+		s.m().HitExpired()
 		return dst, ErrNotFound
 	}
 
@@ -52,6 +55,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	arenaOffset := entry.offset % ArenaSize
 
 	if arenaIdx >= s.alen() {
+		s.m().Miss()
 		return dst, ErrNotFound
 	}
 	arena := &s.arena[arenaIdx]
@@ -67,6 +71,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		rest -= arenaRest
 		arenaIdx++
 		if arenaIdx >= s.alen() {
+			s.m().HitCorrupted()
 			return dst, ErrEntryCorrupt
 		}
 		arena = &s.arena[arenaIdx]
@@ -77,6 +82,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		}
 	}
 
+	s.m().HitOK()
 	return dst, ErrOK
 }
 
@@ -86,6 +92,10 @@ func (s *shard) now() uint32 {
 
 func (s *shard) alen() uint32 {
 	return uint32(len(s.arena))
+}
+
+func (s *shard) m() MetricsWriter {
+	return s.config.MetricsWriter
 }
 
 func min(a, b uint32) uint32 {

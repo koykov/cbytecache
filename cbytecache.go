@@ -28,6 +28,10 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		return nil, ErrVacuumDur
 	}
 
+	if config.MetricsWriter == nil {
+		config.MetricsWriter = &DummyMetrics{}
+	}
+
 	if config.Logger == nil {
 		config.Logger = &DummyLog{}
 	}
@@ -38,7 +42,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	}
 	c.shards = make([]*shard, config.Shards)
 	for i := range c.shards {
-		c.shards[i] = newShard(c.nowPtr, config.Logger)
+		c.shards[i] = newShard(c.nowPtr, &config)
 	}
 
 	tickerNow := time.NewTicker(time.Second)
