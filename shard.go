@@ -72,14 +72,16 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		return dst, ErrNotFound
 	}
 
-	arenaIdx := entry.offset / ArenaSize
-	arenaOffset := entry.offset % ArenaSize
+	// arenaIdx := entry.offset / ArenaSize
+	// arenaOffset := entry.offset % ArenaSize
+	arenaID := entry.arenaID()
+	arenaOffset := entry.offset
 
-	if arenaIdx >= s.alen() {
+	if arenaID >= s.alen() {
 		s.m().Miss()
 		return dst, ErrNotFound
 	}
-	arena := &s.arena[arenaIdx]
+	arena := &s.arena[arenaID]
 
 	arenaRest := ArenaSize - arenaOffset
 	if arenaRest < uint32(entry.length) {
@@ -90,12 +92,12 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	loop:
 		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
 		rest -= arenaRest
-		arenaIdx++
-		if arenaIdx >= s.alen() {
+		arenaID++
+		if arenaID >= s.alen() {
 			s.m().HitCorrupted()
 			return dst, ErrEntryCorrupt
 		}
-		arena = &s.arena[arenaIdx]
+		arena = &s.arena[arenaID]
 		arenaOffset = 0
 		arenaRest = min(rest, ArenaSize)
 		if rest > 0 {
