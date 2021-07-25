@@ -8,4 +8,8 @@ const (
 
 	// todo increase after tests.
 	ArenaSize = uint32(Kilobyte)
+
+	shardStatusActive  = 0
+	shardStatusService = 1
+	shardStatusCorrupt = 2
 )

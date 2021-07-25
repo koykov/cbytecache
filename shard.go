@@ -8,26 +8,35 @@ import (
 )
 
 type shard struct {
+	config *Config
+	status uint32
 	mux    sync.RWMutex
 	buf    *cbytebuf.CByteBuf
 	index  map[uint64]uint32
 	entry  []entry
 	arena  []arena
-	config *Config
 	nowPtr *uint32
 }
 
 func newShard(nowPtr *uint32, config *Config) *shard {
 	s := &shard{
+		config: config,
 		buf:    cbytebuf.NewCByteBuf(),
 		index:  make(map[uint64]uint32),
-		config: config,
 		nowPtr: nowPtr,
 	}
 	return s
 }
 
 func (s *shard) set(h uint64, b []byte) (err error) {
+	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
+		if status == shardStatusService {
+			err = ErrShardService
+			return
+		}
+		// todo check corrupted status
+	}
+
 	s.mux.Lock()
 	err = s.setLF(h, b)
 	s.mux.Unlock()
@@ -52,6 +61,13 @@ func (s *shard) setLF(h uint64, b []byte) error {
 }
 
 func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
+	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
+		if status == shardStatusService {
+			return dst, ErrShardService
+		}
+		// todo check corrupted status
+	}
+
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 	var (
