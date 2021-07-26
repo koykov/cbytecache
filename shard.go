@@ -10,12 +10,13 @@ import (
 type shard struct {
 	config *Config
 	status uint32
-	mux    sync.RWMutex
-	buf    *cbytebuf.CByteBuf
-	index  map[uint64]uint32
-	entry  []entry
-	arena  []arena
 	nowPtr *uint32
+
+	mux   sync.RWMutex
+	buf   *cbytebuf.CByteBuf
+	index map[uint64]uint32
+	entry []entry
+	arena []arena
 }
 
 func newShard(nowPtr *uint32, config *Config) *shard {
@@ -82,7 +83,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		s.m().Miss()
 		return dst, ErrNotFound
 	}
-	entry := s.entry[idx]
+	entry := &s.entry[idx]
 	if entry.expire < s.now() {
 		s.m().HitExpired()
 		return dst, ErrNotFound
