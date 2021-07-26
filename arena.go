@@ -7,8 +7,13 @@ import (
 )
 
 type arena struct {
-	id uint32
-	h  reflect.SliceHeader
+	id, offset uint32
+
+	h reflect.SliceHeader
+}
+
+func (a *arena) bytesCopy(offset uint32, b []byte) {
+	cbyte.Memcpy(uint64(a.h.Data), uint64(offset), b)
 }
 
 func (a *arena) bytesRange(offset, length uint32) []byte {

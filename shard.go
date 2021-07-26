@@ -17,6 +17,8 @@ type shard struct {
 	index map[uint64]uint32
 	entry []entry
 	arena []arena
+
+	arenaOffset uint32
 }
 
 func newShard(nowPtr *uint32, config *Config) *shard {
@@ -56,7 +58,42 @@ func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
 }
 
 func (s *shard) setLF(h uint64, b []byte) error {
-	_ = h
+	// Look for existing entry to reset it.
+	var entry *entry
+	if idx, ok := s.index[h]; ok {
+		if idx < uint32(len(s.entry)) {
+			entry = &s.entry[idx]
+		}
+	}
+	if entry != nil {
+		entry.hash = 0
+	}
+
+	if s.arenaOffset >= uint32(len(s.arena)) {
+		// todo alloc new arena.
+	}
+	arena := &s.arena[s.arenaOffset]
+	arenaRest := ArenaSize - arena.offset
+	rest := uint32(len(b))
+	if arenaRest >= rest {
+		arena.bytesCopy(arena.offset, b)
+		arena.offset += rest
+	} else {
+		// todo test me.
+	loop:
+		arena.bytesCopy(arena.offset, b[:arenaRest])
+		rest -= arenaRest
+		s.arenaOffset++
+		if s.arenaOffset >= uint32(len(s.arena)) {
+			// todo alloc new arena.
+		}
+		arena = &s.arena[s.arenaOffset]
+		arenaRest = min(rest, ArenaSize)
+		if rest > 0 {
+			goto loop
+		}
+	}
+
 	s.m().Set(len(b))
 	return ErrOK
 }
@@ -128,7 +165,7 @@ func (s *shard) checkStatus() error {
 		if status == shardStatusService {
 			return ErrShardService
 		}
-		// todo check corrupted status
+		// todo check corrupted status.
 	}
 	return nil
 }
