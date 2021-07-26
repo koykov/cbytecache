@@ -30,12 +30,8 @@ func newShard(nowPtr *uint32, config *Config) *shard {
 }
 
 func (s *shard) set(h uint64, b []byte) (err error) {
-	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
-		if status == shardStatusService {
-			err = ErrShardService
-			return
-		}
-		// todo check corrupted status
+	if err = s.checkStatus(); err != nil {
+		return
 	}
 
 	s.mux.Lock()
@@ -45,6 +41,10 @@ func (s *shard) set(h uint64, b []byte) (err error) {
 }
 
 func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
+	if err = s.checkStatus(); err != nil {
+		return
+	}
+
 	s.mux.Lock()
 	defer s.mux.Unlock()
 	s.buf.ResetLen()
@@ -62,11 +62,8 @@ func (s *shard) setLF(h uint64, b []byte) error {
 }
 
 func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
-	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
-		if status == shardStatusService {
-			return dst, ErrShardService
-		}
-		// todo check corrupted status
+	if err := s.checkStatus(); err != nil {
+		return dst, err
 	}
 
 	s.mux.RLock()
@@ -124,6 +121,16 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 
 	s.m().HitOK()
 	return dst, ErrOK
+}
+
+func (s *shard) checkStatus() error {
+	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
+		if status == shardStatusService {
+			return ErrShardService
+		}
+		// todo check corrupted status
+	}
+	return nil
 }
 
 func (s *shard) now() uint32 {
