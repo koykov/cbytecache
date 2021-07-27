@@ -69,8 +69,13 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		entry.hash = 0
 	}
 
-	if s.arenaOffset >= uint32(len(s.arena)) {
-		// todo alloc new arena.
+	if s.arenaOffset >= s.alen() {
+	alloc1:
+		arena := allocArena(s.alen())
+		s.arena = append(s.arena, *arena)
+		if s.alen() <= s.arenaOffset {
+			goto alloc1
+		}
 	}
 	arena := &s.arena[s.arenaOffset]
 	arenaRest := ArenaSize - arena.offset
@@ -84,8 +89,13 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		arena.bytesCopy(arena.offset, b[:arenaRest])
 		rest -= arenaRest
 		s.arenaOffset++
-		if s.arenaOffset >= uint32(len(s.arena)) {
-			// todo alloc new arena.
+		if s.arenaOffset >= s.alen() {
+		alloc2:
+			arena := allocArena(s.alen())
+			s.arena = append(s.arena, *arena)
+			if s.alen() <= s.arenaOffset {
+				goto alloc2
+			}
 		}
 		arena = &s.arena[s.arenaOffset]
 		arenaRest = min(rest, ArenaSize)

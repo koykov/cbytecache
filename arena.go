@@ -12,6 +12,12 @@ type arena struct {
 	h reflect.SliceHeader
 }
 
+func allocArena(id uint32) *arena {
+	a := &arena{id: id}
+	a.h = cbyte.InitHeader(0, int(ArenaSize))
+	return a
+}
+
 func (a *arena) bytesCopy(offset uint32, b []byte) {
 	cbyte.Memcpy(uint64(a.h.Data), uint64(offset), b)
 }
