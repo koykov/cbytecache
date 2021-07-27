@@ -36,9 +36,11 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		config.Logger = &DummyLog{}
 	}
 
+	now := uint32(0)
 	c := &CByteCache{
 		config: &config,
 		mask:   uint64(config.Shards - 1),
+		nowPtr: &now,
 	}
 	c.shards = make([]*shard, config.Shards)
 	for i := range c.shards {
