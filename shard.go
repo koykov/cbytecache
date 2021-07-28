@@ -61,7 +61,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	// Look for existing entry to reset it.
 	var e *entry
 	if idx, ok := s.index[h]; ok {
-		if idx < uint32(len(s.entry)) {
+		if idx < s.elen() {
 			e = &s.entry[idx]
 		}
 	}
@@ -113,7 +113,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		expire: s.now() + uint32(s.config.Expire)/1e9,
 		aidptr: arenaID,
 	})
-	s.index[h] = uint32(len(s.entry)) - 1
+	s.index[h] = s.elen() - 1
 
 	s.m().Set(len(b))
 	return ErrOK
@@ -134,7 +134,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		s.m().Miss()
 		return dst, ErrNotFound
 	}
-	if idx >= uint32(len(s.entry)) {
+	if idx >= s.elen() {
 		s.m().Miss()
 		return dst, ErrNotFound
 	}
@@ -197,6 +197,10 @@ func (s *shard) now() uint32 {
 
 func (s *shard) alen() uint32 {
 	return uint32(len(s.arena))
+}
+
+func (s *shard) elen() uint32 {
+	return uint32(len(s.entry))
 }
 
 func (s *shard) m() MetricsWriter {
