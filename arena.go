@@ -19,7 +19,8 @@ func allocArena(id uint32) *arena {
 }
 
 func (a *arena) bytesCopy(offset uint32, b []byte) {
-	cbyte.Memcpy(uint64(a.h.Data), uint64(offset), b)
+	n := cbyte.Memcpy(uint64(a.h.Data), uint64(offset), b)
+	a.h.Len += n
 }
 
 func (a *arena) bytesRange(offset, length uint32) []byte {

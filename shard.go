@@ -59,14 +59,14 @@ func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
 
 func (s *shard) setLF(h uint64, b []byte) error {
 	// Look for existing entry to reset it.
-	var entry *entry
+	var e *entry
 	if idx, ok := s.index[h]; ok {
 		if idx < uint32(len(s.entry)) {
-			entry = &s.entry[idx]
+			e = &s.entry[idx]
 		}
 	}
-	if entry != nil {
-		entry.hash = 0
+	if e != nil {
+		e.hash = 0
 	}
 
 	if s.arenaOffset >= s.alen() {
@@ -78,6 +78,8 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		}
 	}
 	arena := &s.arena[s.arenaOffset]
+	arenaID := &arena.id
+	arenaOffset := arena.offset
 	arenaRest := ArenaSize - arena.offset
 	rest := uint32(len(b))
 	if arenaRest >= rest {
@@ -103,6 +105,15 @@ func (s *shard) setLF(h uint64, b []byte) error {
 			goto loop
 		}
 	}
+
+	s.entry = append(s.entry, entry{
+		hash:   h,
+		offset: arenaOffset,
+		length: uint16(len(b)),
+		expire: s.now() + uint32(s.config.Expire)/1e9,
+		aidptr: arenaID,
+	})
+	s.index[h] = uint32(len(s.entry)) - 1
 
 	s.m().Set(len(b))
 	return ErrOK
@@ -145,7 +156,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	arena := &s.arena[arenaID]
 
 	arenaRest := ArenaSize - arenaOffset
-	if arenaRest < uint32(entry.length) {
+	if entry.offset+uint32(entry.length) < ArenaSize {
 		dst = append(dst, arena.bytesRange(arenaOffset, uint32(entry.length))...)
 	} else {
 		// todo test me.
