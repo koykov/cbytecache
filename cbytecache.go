@@ -36,7 +36,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 		config.Logger = &DummyLog{}
 	}
 
-	now := uint32(0)
+	now := uint32(time.Now().Unix())
 	c := &CByteCache{
 		config: &config,
 		mask:   uint64(config.Shards - 1),
