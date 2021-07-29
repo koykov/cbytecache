@@ -5,6 +5,8 @@ import "errors"
 var (
 	ErrOK error = nil
 
+	ErrBadCache     = errors.New("cache uninitialized, use NewCByteCache()")
+	ErrCacheClosed  = errors.New("cache closed")
 	ErrBadHashFn    = errors.New("you must provide hash function")
 	ErrBadShards    = errors.New("shards count must be power of two")
 	ErrNotFound     = errors.New("entry not found")

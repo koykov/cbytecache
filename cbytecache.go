@@ -10,6 +10,7 @@ import (
 
 type CByteCache struct {
 	config *Config
+	status uint32
 	shards []*shard
 	mask   uint64
 	nowPtr *uint32
@@ -41,6 +42,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	now := uint32(time.Now().Unix())
 	c := &CByteCache{
 		config: &config,
+		status: cacheStatusActive,
 		mask:   uint64(config.Shards - 1),
 		nowPtr: &now,
 	}
@@ -70,6 +72,9 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
+	if err := c.checkCache(); err != nil {
+		return err
+	}
 	if len(data) > MaxEntrySize {
 		return ErrEntryTooBig
 	}
@@ -79,6 +84,9 @@ func (c *CByteCache) Set(key string, data []byte) error {
 }
 
 func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
+	if err := c.checkCache(); err != nil {
+		return err
+	}
 	if m.Size() > MaxEntrySize {
 		return ErrEntryTooBig
 	}
@@ -92,7 +100,22 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 }
 
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
+	if err := c.checkCache(); err != nil {
+		return dst, err
+	}
 	h := c.config.HashFn(key)
 	shard := c.shards[h&c.mask]
 	return shard.get(dst, h)
+}
+
+func (c *CByteCache) checkCache() error {
+	if status := atomic.LoadUint32(&c.status); status != cacheStatusActive {
+		if status == cacheStatusNil {
+			return ErrBadCache
+		}
+		if status == cacheStatusClosed {
+			return ErrCacheClosed
+		}
+	}
+	return nil
 }
