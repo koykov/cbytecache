@@ -14,3 +14,8 @@ type Config struct {
 	MetricsWriter MetricsWriter
 	Logger        Logger
 }
+
+func (c *Config) Copy() *Config {
+	cpy := *c
+	return &cpy
+}

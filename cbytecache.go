@@ -16,7 +16,9 @@ type CByteCache struct {
 	nowPtr *uint32
 }
 
-func NewCByteCache(config Config) (*CByteCache, error) {
+func NewCByteCache(config *Config) (*CByteCache, error) {
+	config = config.Copy()
+
 	if config.HashFn == nil {
 		return nil, ErrBadHashFn
 	}
@@ -41,7 +43,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 
 	now := uint32(time.Now().Unix())
 	c := &CByteCache{
-		config: &config,
+		config: config,
 		status: cacheStatusActive,
 		mask:   uint64(config.Shards - 1),
 		nowPtr: &now,
@@ -49,7 +51,7 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	c.shards = make([]*shard, config.Shards)
 	for i := range c.shards {
 		c.shards[i] = &shard{
-			config:  &config,
+			config:  config,
 			maxSize: uint32(uint64(config.MaxSize) / uint64(config.Shards)),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
