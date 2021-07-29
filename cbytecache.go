@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
+
+	"github.com/koykov/cbytebuf"
 )
 
 type CByteCache struct {
@@ -44,7 +46,13 @@ func NewCByteCache(config Config) (*CByteCache, error) {
 	}
 	c.shards = make([]*shard, config.Shards)
 	for i := range c.shards {
-		c.shards[i] = newShard(c.nowPtr, &config)
+		c.shards[i] = &shard{
+			config:  &config,
+			maxSize: uint32(uint64(config.MaxSize) / uint64(config.Shards)),
+			buf:     cbytebuf.NewCByteBuf(),
+			index:   make(map[uint64]uint32),
+			nowPtr:  c.nowPtr,
+		}
 	}
 
 	tickerNow := time.NewTicker(time.Second)

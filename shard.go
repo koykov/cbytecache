@@ -8,9 +8,10 @@ import (
 )
 
 type shard struct {
-	config *Config
-	status uint32
-	nowPtr *uint32
+	config  *Config
+	status  uint32
+	maxSize uint32
+	nowPtr  *uint32
 
 	mux   sync.RWMutex
 	buf   *cbytebuf.CByteBuf
@@ -19,16 +20,6 @@ type shard struct {
 	arena []arena
 
 	arenaOffset uint32
-}
-
-func newShard(nowPtr *uint32, config *Config) *shard {
-	s := &shard{
-		config: config,
-		buf:    cbytebuf.NewCByteBuf(),
-		index:  make(map[uint64]uint32),
-		nowPtr: nowPtr,
-	}
-	return s
 }
 
 func (s *shard) set(h uint64, b []byte) (err error) {
@@ -70,6 +61,9 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	}
 
 	if s.arenaOffset >= s.alen() {
+		if s.alen()*ArenaSize+ArenaSize > s.maxSize {
+			return ErrNoSpace
+		}
 	alloc1:
 		arena := allocArena(s.alen())
 		s.arena = append(s.arena, *arena)
@@ -92,6 +86,9 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		rest -= arenaRest
 		s.arenaOffset++
 		if s.arenaOffset >= s.alen() {
+			if s.alen()*ArenaSize+ArenaSize > s.maxSize {
+				return ErrNoSpace
+			}
 		alloc2:
 			arena := allocArena(s.alen())
 			s.arena = append(s.arena, *arena)
