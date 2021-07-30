@@ -60,6 +60,8 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		e.hash = 0
 	}
 
+	blen := uint16(len(b))
+
 	if s.arenaOffset >= s.alen() {
 		if s.alen()*ArenaSize+ArenaSize > s.maxSize {
 			return ErrNoSpace
@@ -83,6 +85,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 		// todo test me.
 	loop:
 		arena.bytesCopy(arena.offset, b[:arenaRest])
+		b = b[arenaRest:]
 		rest -= arenaRest
 		s.arenaOffset++
 		if s.arenaOffset >= s.alen() {
@@ -106,7 +109,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	s.entry = append(s.entry, entry{
 		hash:   h,
 		offset: arenaOffset,
-		length: uint16(len(b)),
+		length: blen,
 		expire: s.now() + uint32(s.config.Expire)/1e9,
 		aidptr: arenaID,
 	})
@@ -141,8 +144,6 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		return dst, ErrNotFound
 	}
 
-	// arenaIdx := entry.offset / ArenaSize
-	// arenaOffset := entry.offset % ArenaSize
 	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
@@ -183,7 +184,9 @@ func (s *shard) checkStatus() error {
 		if status == shardStatusService {
 			return ErrShardService
 		}
-		// todo check corrupted status.
+		if status == shardStatusCorrupt {
+			// todo return corresponding error.
+		}
 	}
 	return nil
 }
