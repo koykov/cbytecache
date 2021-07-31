@@ -115,7 +115,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	})
 	s.index[h] = s.elen() - 1
 
-	s.m().Set(len(b))
+	s.m().Set(int(blen))
 	return ErrOK
 }
 
