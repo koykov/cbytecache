@@ -77,6 +77,9 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
+	if len(data) == 0 {
+		return ErrEntryEmpty
+	}
 	if len(data) > MaxEntrySize {
 		return ErrEntryTooBig
 	}
@@ -88,6 +91,9 @@ func (c *CByteCache) Set(key string, data []byte) error {
 func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
 	if err := c.checkCache(); err != nil {
 		return err
+	}
+	if m.Size() == 0 {
+		return ErrEntryEmpty
 	}
 	if m.Size() > MaxEntrySize {
 		return ErrEntryTooBig
