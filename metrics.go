@@ -1,10 +1,12 @@
 package cbytecache
 
 type MetricsWriter interface {
-	Set(len int)
+	Grow(size uint32)
+	Reduce(size uint32)
+	Set(len uint16)
 	Miss()
-	HitOK()
-	HitExpired()
-	HitCorrupted()
-	Evict(len int)
+	Hit()
+	Expire()
+	Corrupt()
+	Evict(len uint16)
 }

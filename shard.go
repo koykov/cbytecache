@@ -69,6 +69,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	alloc1:
 		arena := allocArena(s.alen())
 		s.arena = append(s.arena, *arena)
+		s.m().Grow(ArenaSize)
 		if s.alen() <= s.arenaOffset {
 			goto alloc1
 		}
@@ -115,7 +116,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	})
 	s.index[h] = s.elen() - 1
 
-	s.m().Set(int(blen))
+	s.m().Set(blen)
 	return ErrOK
 }
 
@@ -140,7 +141,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	}
 	entry := &s.entry[idx]
 	if entry.expire < s.now() {
-		s.m().HitExpired()
+		s.m().Expire()
 		return dst, ErrNotFound
 	}
 
@@ -164,7 +165,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		rest -= arenaRest
 		arenaID++
 		if arenaID >= s.alen() {
-			s.m().HitCorrupted()
+			s.m().Corrupt()
 			return dst, ErrEntryCorrupt
 		}
 		arena = &s.arena[arenaID]
@@ -175,7 +176,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 		}
 	}
 
-	s.m().HitOK()
+	s.m().Hit()
 	return dst, ErrOK
 }
 

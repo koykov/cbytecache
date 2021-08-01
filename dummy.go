@@ -2,12 +2,14 @@ package cbytecache
 
 type DummyMetrics struct{}
 
-func (*DummyMetrics) Set(_ int)     {}
-func (*DummyMetrics) Miss()         {}
-func (*DummyMetrics) HitOK()        {}
-func (*DummyMetrics) HitExpired()   {}
-func (*DummyMetrics) HitCorrupted() {}
-func (*DummyMetrics) Evict(_ int)   {}
+func (*DummyMetrics) Grow(_ uint32)   {}
+func (*DummyMetrics) Reduce(_ uint32) {}
+func (*DummyMetrics) Set(_ uint16)    {}
+func (*DummyMetrics) Miss()           {}
+func (*DummyMetrics) Hit()            {}
+func (*DummyMetrics) Expire()         {}
+func (*DummyMetrics) Corrupt()        {}
+func (*DummyMetrics) Evict(_ uint16)  {}
 
 type DummyLog struct{}
 
