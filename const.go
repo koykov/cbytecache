@@ -16,4 +16,6 @@ const (
 	shardStatusActive  = 0
 	shardStatusService = 1
 	shardStatusCorrupt = 2
+
+	evictWorkers = 16
 )

@@ -2,6 +2,7 @@ package cbytecache
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -70,6 +71,19 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		}
 	}()
 
+	if config.Expire > 0 {
+		tickerExpire := time.NewTicker(config.Expire)
+		go func() {
+			for {
+				select {
+				// todo implement done signal.
+				case <-tickerExpire.C:
+					//
+				}
+			}
+		}()
+	}
+
 	return c, ErrOK
 }
 
@@ -114,6 +128,43 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	h := c.config.HashFn(key)
 	shard := c.shards[h&c.mask]
 	return shard.get(dst, h)
+}
+
+func (c *CByteCache) evict() error {
+	if err := c.checkCache(); err != nil {
+		return err
+	}
+	count := min(evictWorkers, uint32(c.config.Shards))
+	shardQueue := make(chan uint, count)
+	var wg sync.WaitGroup
+	for i := uint32(0); i < count; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var (
+				idx uint
+				ok  = true
+			)
+			for ok {
+				if idx, ok = <-shardQueue; ok {
+					shard := c.shards[idx]
+					_ = shard
+				}
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := uint(0); i < c.config.Shards; i++ {
+			shardQueue <- i
+		}
+		close(shardQueue)
+	}()
+
+	wg.Wait()
+
+	return ErrOK
 }
 
 func (c *CByteCache) checkCache() error {
