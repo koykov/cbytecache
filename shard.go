@@ -1,6 +1,7 @@
 package cbytecache
 
 import (
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -193,81 +194,14 @@ func (s *shard) evict() error {
 		return ErrOK
 	}
 
-	var (
-		i, z uint32
-	)
-	_ = s.entry[el-1]
-	if el < 256 {
-		for i = 0; i < el; i++ {
-			if s.entry[i].expire >= s.now() {
-				z = i
-				break
-			}
-		}
-	} else {
-		var x, y, step uint32
-		step = el / 256
-		for y = step; y+step < el; {
-			if s.entry[y].expire >= s.now() {
-				break
-			}
-			x = y
-		}
-		if step > 256 {
-			zo, y8 := z, y/8
-			for i = x; i < y8; i += 8 {
-				if s.entry[i].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+1].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+2].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+3].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+4].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+5].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+6].expire == s.now() {
-					z = i
-					break
-				}
-				if s.entry[i+7].expire == s.now() {
-					z = i
-					break
-				}
-			}
-			if zo == z {
-				for i = y8; i < y; i++ {
-					if s.entry[i].expire == s.now() {
-						z = i
-						break
-					}
-				}
-			}
-		} else {
-			for i = x; i < y; i++ {
-				if s.entry[i].expire == s.now() {
-					z = i
-					break
-				}
-			}
-		}
-	}
+	entry := s.entry
+	now := s.now()
+	z := sort.Search(int(el), func(i int) bool {
+		return now <= entry[i].expire
+	})
 
 	// todo evict entries [0...z]
+	_ = z
 
 	return ErrOK
 }
