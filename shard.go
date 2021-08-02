@@ -199,7 +199,7 @@ func (s *shard) evict() error {
 	_ = s.entry[el-1]
 	if el < 256 {
 		for i = 0; i < el; i++ {
-			if s.entry[i].expire <= s.now() {
+			if s.entry[i].expire >= s.now() {
 				z = i
 				break
 			}
