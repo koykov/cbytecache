@@ -1,10 +1,15 @@
 package cbytecache
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 const (
 	MaxEntrySize = math.MaxUint16
 	MaxShardSize = math.MaxUint32
+
+	MinExpireInterval = time.Second
 
 	// todo increase after tests.
 	ArenaSize = uint32(Kilobyte)
