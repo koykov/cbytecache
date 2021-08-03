@@ -181,7 +181,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	return dst, ErrOK
 }
 
-func (s *shard) evict() error {
+func (s *shard) bulkEvict() error {
 	if err := s.checkStatus(); err != nil {
 		return err
 	}
@@ -196,14 +196,48 @@ func (s *shard) evict() error {
 
 	entry := s.entry
 	now := s.now()
+	_ = entry[el-1]
 	z := sort.Search(int(el), func(i int) bool {
 		return now <= entry[i].expire
 	})
 
-	// todo evict entries [0...z]
-	_ = z
+	if z == 0 {
+		return ErrOK
+	}
+
+	if z < 256 {
+		_ = s.entry[el-1]
+		for i := 0; i < z; i++ {
+			s.evict(i)
+		}
+	} else {
+		z8 := z - z%8
+		_ = s.entry[el-1]
+		for i := 0; i < z8; i += 8 {
+			s.evict(i)
+			s.evict(i + 1)
+			s.evict(i + 2)
+			s.evict(i + 3)
+			s.evict(i + 4)
+			s.evict(i + 5)
+			s.evict(i + 6)
+			s.evict(i + 7)
+		}
+		for i := z8; i < z; i++ {
+			s.evict(i)
+		}
+	}
+
+	copy(s.entry, s.entry[z:])
+	s.entry = s.entry[:el-uint32(z)]
 
 	return ErrOK
+}
+
+func (s *shard) evict(idx int) {
+	entry := &s.entry[idx]
+	hash := entry.hash
+	delete(s.index, hash)
 }
 
 func (s *shard) checkStatus() error {
