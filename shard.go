@@ -18,7 +18,8 @@ type shard struct {
 	buf   *cbytebuf.CByteBuf
 	index map[uint64]uint32
 	entry []entry
-	arena []arena
+
+	arena, arenaBuf []arena
 
 	arenaOffset uint32
 }
@@ -205,39 +206,111 @@ func (s *shard) bulkEvict() error {
 		return ErrOK
 	}
 
-	if z < 256 {
-		_ = s.entry[el-1]
-		for i := 0; i < z; i++ {
-			s.evict(i)
-		}
-	} else {
-		z8 := z - z%8
-		_ = s.entry[el-1]
-		for i := 0; i < z8; i += 8 {
-			s.evict(i)
-			s.evict(i + 1)
-			s.evict(i + 2)
-			s.evict(i + 3)
-			s.evict(i + 4)
-			s.evict(i + 5)
-			s.evict(i + 6)
-			s.evict(i + 7)
-		}
-		for i := z8; i < z; i++ {
-			s.evict(i)
-		}
-	}
+	arenaID := s.entry[z].arenaID()
 
-	copy(s.entry, s.entry[z:])
-	s.entry = s.entry[:el-uint32(z)]
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go s.evict(&wg, z)
+
+	wg.Add(1)
+	go s.recycleArena(&wg, arenaID)
+
+	wg.Wait()
 
 	return ErrOK
 }
 
-func (s *shard) evict(idx int) {
-	entry := &s.entry[idx]
-	hash := entry.hash
-	delete(s.index, hash)
+func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
+	defer wg.Done()
+	var arenaIdx int
+	al := len(s.arena)
+	if al == 0 {
+		return
+	}
+	if al < 256 {
+		_ = s.arena[al-1]
+		for i := 0; i < al; i++ {
+			if s.arena[i].id == arenaID {
+				arenaIdx = i
+				break
+			}
+		}
+	} else {
+		al8 := al - al%8
+		_ = s.arena[al-1]
+		for i := 0; i < al8; i += 8 {
+			if s.arena[i].id == arenaID {
+				arenaIdx = i
+				break
+			}
+			if s.arena[i+1].id == arenaID {
+				arenaIdx = i + 1
+				break
+			}
+			if s.arena[i+2].id == arenaID {
+				arenaIdx = i + 2
+				break
+			}
+			if s.arena[i+3].id == arenaID {
+				arenaIdx = i + 3
+				break
+			}
+			if s.arena[i+4].id == arenaID {
+				arenaIdx = i + 4
+				break
+			}
+			if s.arena[i+5].id == arenaID {
+				arenaIdx = i + 5
+				break
+			}
+			if s.arena[i+6].id == arenaID {
+				arenaIdx = i + 6
+				break
+			}
+			if s.arena[i+7].id == arenaID {
+				arenaIdx = i + 7
+				break
+			}
+		}
+	}
+	if arenaIdx == 0 {
+		return
+	}
+
+	s.arenaBuf = append(s.arenaBuf[:0], s.arena[:arenaIdx]...)
+	copy(s.arena, s.arena[arenaIdx:])
+	s.arena = append(s.arena[:arenaIdx], s.arenaBuf...)
+}
+
+func (s *shard) evict(wg *sync.WaitGroup, idx int) {
+	defer wg.Done()
+	el := s.elen()
+	if idx < 256 {
+		_ = s.entry[el-1]
+		for i := 0; i < idx; i++ {
+			delete(s.index, s.entry[i].hash)
+		}
+	} else {
+		idx8 := idx - idx%8
+		_ = s.entry[el-1]
+		for i := 0; i < idx8; i += 8 {
+			delete(s.index, s.entry[i].hash)
+			delete(s.index, s.entry[i+1].hash)
+			delete(s.index, s.entry[i+2].hash)
+			delete(s.index, s.entry[i+3].hash)
+			delete(s.index, s.entry[i+4].hash)
+			delete(s.index, s.entry[i+5].hash)
+			delete(s.index, s.entry[i+6].hash)
+			delete(s.index, s.entry[i+7].hash)
+		}
+		for i := idx8; i < idx; i++ {
+			delete(s.index, s.entry[i].hash)
+		}
+	}
+
+	copy(s.entry, s.entry[idx:])
+	s.entry = s.entry[:el-uint32(idx)]
 }
 
 func (s *shard) checkStatus() error {
