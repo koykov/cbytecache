@@ -140,22 +140,24 @@ func (c *CByteCache) evict() error {
 	count := min(evictWorkers, uint32(c.config.Shards))
 	shardQueue := make(chan uint, count)
 	var wg sync.WaitGroup
+
 	for i := uint32(0); i < count; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			var (
-				idx uint
-				ok  = true
-			)
-			for ok {
-				if idx, ok = <-shardQueue; ok {
+			for {
+				if idx, ok := <-shardQueue; ok {
 					shard := c.shards[idx]
-					_ = shard.bulkEvict()
+					if err := shard.bulkEvict(); err != nil && c.config.Logger != nil {
+						c.config.Logger.Printf("shard %d eviction failed with error: %s\n", idx, err.Error())
+					}
+					continue
 				}
+				break
 			}
 		}()
 	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
