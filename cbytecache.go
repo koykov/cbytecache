@@ -151,7 +151,7 @@ func (c *CByteCache) evict() error {
 			for ok {
 				if idx, ok = <-shardQueue; ok {
 					shard := c.shards[idx]
-					_ = shard
+					_ = shard.bulkEvict()
 				}
 			}
 		}()
