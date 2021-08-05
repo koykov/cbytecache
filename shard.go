@@ -281,6 +281,11 @@ func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	s.arenaBuf = append(s.arenaBuf[:0], s.arena[:arenaIdx]...)
 	copy(s.arena, s.arena[arenaIdx:])
 	s.arena = append(s.arena[:arenaIdx], s.arenaBuf...)
+
+	_ = s.arena[al-1]
+	for i := 0; i < al; i++ {
+		s.arena[i].id = uint32(i)
+	}
 }
 
 func (s *shard) evictRange(wg *sync.WaitGroup, z int) {
