@@ -211,7 +211,7 @@ func (s *shard) bulkEvict() error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go s.evict(&wg, z)
+	go s.evictRange(&wg, z)
 
 	wg.Add(1)
 	go s.recycleArena(&wg, arenaID)
@@ -283,34 +283,39 @@ func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	s.arena = append(s.arena[:arenaIdx], s.arenaBuf...)
 }
 
-func (s *shard) evict(wg *sync.WaitGroup, idx int) {
+func (s *shard) evictRange(wg *sync.WaitGroup, z int) {
 	defer wg.Done()
 	el := s.elen()
-	if idx < 256 {
+	if z < 256 {
 		_ = s.entry[el-1]
-		for i := 0; i < idx; i++ {
-			delete(s.index, s.entry[i].hash)
+		for i := 0; i < z; i++ {
+			s.evict(&s.entry[i])
 		}
 	} else {
-		idx8 := idx - idx%8
+		z8 := z - z%8
 		_ = s.entry[el-1]
-		for i := 0; i < idx8; i += 8 {
-			delete(s.index, s.entry[i].hash)
-			delete(s.index, s.entry[i+1].hash)
-			delete(s.index, s.entry[i+2].hash)
-			delete(s.index, s.entry[i+3].hash)
-			delete(s.index, s.entry[i+4].hash)
-			delete(s.index, s.entry[i+5].hash)
-			delete(s.index, s.entry[i+6].hash)
-			delete(s.index, s.entry[i+7].hash)
+		for i := 0; i < z8; i += 8 {
+			s.evict(&s.entry[i])
+			s.evict(&s.entry[i+1])
+			s.evict(&s.entry[i+2])
+			s.evict(&s.entry[i+3])
+			s.evict(&s.entry[i+4])
+			s.evict(&s.entry[i+5])
+			s.evict(&s.entry[i+6])
+			s.evict(&s.entry[i+7])
 		}
-		for i := idx8; i < idx; i++ {
-			delete(s.index, s.entry[i].hash)
+		for i := z8; i < z; i++ {
+			s.evict(&s.entry[i])
 		}
 	}
 
-	copy(s.entry, s.entry[idx:])
-	s.entry = s.entry[:el-uint32(idx)]
+	copy(s.entry, s.entry[z:])
+	s.entry = s.entry[:el-uint32(z)]
+}
+
+func (s *shard) evict(e *entry) {
+	delete(s.index, e.hash)
+	s.m().Evict(e.length)
 }
 
 func (s *shard) checkStatus() error {
