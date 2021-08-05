@@ -18,6 +18,9 @@ type CByteCache struct {
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
+	if config == nil {
+		return nil, ErrBadConfig
+	}
 	config = config.Copy()
 
 	if config.HashFn == nil {

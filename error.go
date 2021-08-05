@@ -5,6 +5,7 @@ import "errors"
 var (
 	ErrOK error = nil
 
+	ErrBadConfig    = errors.New("config is empty")
 	ErrBadCache     = errors.New("cache uninitialized, use NewCByteCache()")
 	ErrCacheClosed  = errors.New("cache closed")
 	ErrBadHashFn    = errors.New("you must provide hash function")
