@@ -39,31 +39,31 @@ func randKey(n int) string {
 }
 
 func cbcBench(b *testing.B, alg uint) {
-	conf := Config{Shards: 16}
-	c := NewCByteCache(&conf)
-	c.Alg = alg
-	b.ResetTimer()
-	b.ReportAllocs()
-	ki := 0
-	var key string
-	for i := 0; i < b.N; i++ {
-		//key := randKey(20)
-		if i < 10000000 {
-			key = keys[ki]
-			ki++
-		} else {
-			ki = 0
-			key = keys[ki]
-		}
-
-		data := dataPool[rand.Intn(len(dataPool))]
-		_ = c.Set(key, data)
-		//_, _ = c.Get(key)
-		//r, _ := c.Get(key)
-		//if !bytes.Equal(r, data) {
-		//	b.Error(r, data)
-		//}
-	}
+	// conf := Config{Buckets: 16}
+	// c := NewCByteCache(&conf)
+	// c.Alg = alg
+	// b.ResetTimer()
+	// b.ReportAllocs()
+	// ki := 0
+	// var key string
+	// for i := 0; i < b.N; i++ {
+	// 	//key := randKey(20)
+	// 	if i < 10000000 {
+	// 		key = keys[ki]
+	// 		ki++
+	// 	} else {
+	// 		ki = 0
+	// 		key = keys[ki]
+	// 	}
+	//
+	// 	data := dataPool[rand.Intn(len(dataPool))]
+	// 	_ = c.Set(key, data)
+	// 	//_, _ = c.Get(key)
+	// 	//r, _ := c.Get(key)
+	// 	//if !bytes.Equal(r, data) {
+	// 	//	b.Error(r, data)
+	// 	//}
+	// }
 }
 
 func BenchmarkCbcHashMap(b *testing.B) {

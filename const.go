@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	MaxEntrySize = math.MaxUint16
-	MaxShardSize = math.MaxUint32
+	MaxEntrySize  = math.MaxUint16
+	MaxBucketSize = math.MaxUint32
 
 	MinExpireInterval = time.Second
 
@@ -18,9 +18,9 @@ const (
 	cacheStatusActive = 1
 	cacheStatusClosed = 2
 
-	shardStatusActive  = 0
-	shardStatusService = 1
-	shardStatusCorrupt = 2
+	bucketStatusActive  = 0
+	bucketStatusService = 1
+	bucketStatusCorrupt = 2
 
 	evictWorkers = 16
 )

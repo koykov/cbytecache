@@ -6,7 +6,7 @@ import (
 
 type Config struct {
 	HashFn  func(string) uint64
-	Shards  uint
+	Buckets uint
 	Expire  time.Duration
 	Vacuum  time.Duration
 	MaxSize MemorySize
@@ -22,9 +22,9 @@ func (c *Config) Copy() *Config {
 
 func DefaultConfig(expire time.Duration, hashFn func(string) uint64) *Config {
 	c := Config{
-		HashFn: hashFn,
-		Shards: 1024,
-		Expire: expire,
+		HashFn:  hashFn,
+		Buckets: 1024,
+		Expire:  expire,
 	}
 	return &c
 }

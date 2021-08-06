@@ -8,7 +8,7 @@ import (
 	"github.com/koykov/cbytebuf"
 )
 
-type shard struct {
+type bucket struct {
 	config  *Config
 	status  uint32
 	maxSize uint32
@@ -24,7 +24,7 @@ type shard struct {
 	arenaOffset uint32
 }
 
-func (s *shard) set(h uint64, b []byte) (err error) {
+func (s *bucket) set(h uint64, b []byte) (err error) {
 	if err = s.checkStatus(); err != nil {
 		return
 	}
@@ -35,7 +35,7 @@ func (s *shard) set(h uint64, b []byte) (err error) {
 	return
 }
 
-func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
+func (s *bucket) setm(h uint64, m MarshallerTo) (err error) {
 	if err = s.checkStatus(); err != nil {
 		return
 	}
@@ -50,7 +50,7 @@ func (s *shard) setm(h uint64, m MarshallerTo) (err error) {
 	return
 }
 
-func (s *shard) setLF(h uint64, b []byte) error {
+func (s *bucket) setLF(h uint64, b []byte) error {
 	// Look for existing entry to reset it.
 	var e *entry
 	if idx, ok := s.index[h]; ok {
@@ -124,7 +124,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 	return ErrOK
 }
 
-func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
+func (s *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	if err := s.checkStatus(); err != nil {
 		return dst, err
 	}
@@ -184,7 +184,7 @@ func (s *shard) get(dst []byte, h uint64) ([]byte, error) {
 	return dst, ErrOK
 }
 
-func (s *shard) bulkEvict() error {
+func (s *bucket) bulkEvict() error {
 	if err := s.checkStatus(); err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (s *shard) bulkEvict() error {
 	return ErrOK
 }
 
-func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
+func (s *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	defer wg.Done()
 	var arenaIdx int
 	al := len(s.arena)
@@ -291,7 +291,7 @@ func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	}
 }
 
-func (s *shard) evictRange(wg *sync.WaitGroup, z int) {
+func (s *bucket) evictRange(wg *sync.WaitGroup, z int) {
 	defer wg.Done()
 	el := s.elen()
 	if z < 256 {
@@ -321,36 +321,36 @@ func (s *shard) evictRange(wg *sync.WaitGroup, z int) {
 	s.entry = s.entry[:el-uint32(z)]
 }
 
-func (s *shard) evict(e *entry) {
+func (s *bucket) evict(e *entry) {
 	s.m().Evict(e.length)
 	delete(s.index, e.hash)
 }
 
-func (s *shard) checkStatus() error {
-	if status := atomic.LoadUint32(&s.status); status != shardStatusActive {
-		if status == shardStatusService {
-			return ErrShardService
+func (s *bucket) checkStatus() error {
+	if status := atomic.LoadUint32(&s.status); status != bucketStatusActive {
+		if status == bucketStatusService {
+			return ErrBucketService
 		}
-		if status == shardStatusCorrupt {
+		if status == bucketStatusCorrupt {
 			// todo return corresponding error.
 		}
 	}
 	return nil
 }
 
-func (s *shard) now() uint32 {
+func (s *bucket) now() uint32 {
 	return atomic.LoadUint32(s.nowPtr)
 }
 
-func (s *shard) alen() uint32 {
+func (s *bucket) alen() uint32 {
 	return uint32(len(s.arena))
 }
 
-func (s *shard) elen() uint32 {
+func (s *bucket) elen() uint32 {
 	return uint32(len(s.entry))
 }
 
-func (s *shard) m() MetricsWriter {
+func (s *bucket) m() MetricsWriter {
 	return s.config.MetricsWriter
 }
 

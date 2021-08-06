@@ -10,11 +10,11 @@ import (
 )
 
 type CByteCache struct {
-	config *Config
-	status uint32
-	shards []*shard
-	mask   uint64
-	nowPtr *uint32
+	config  *Config
+	status  uint32
+	buckets []*bucket
+	mask    uint64
+	nowPtr  *uint32
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -26,12 +26,12 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config.HashFn == nil {
 		return nil, ErrBadHashFn
 	}
-	if (config.Shards & (config.Shards - 1)) != 0 {
-		return nil, ErrBadShards
+	if (config.Buckets & (config.Buckets - 1)) != 0 {
+		return nil, ErrBadBuckets
 	}
-	if uint64(config.MaxSize)/uint64(config.Shards) > MaxShardSize {
-		return nil, fmt.Errorf("%d shards on %d cache size exceeds max shard size %d. Reduce cache size or increase shards count",
-			config.Shards, config.MaxSize, MaxShardSize)
+	if uint64(config.MaxSize)/uint64(config.Buckets) > MaxBucketSize {
+		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
+			config.Buckets, config.MaxSize, MaxBucketSize)
 	}
 	if config.Expire < MinExpireInterval {
 		return nil, ErrExpireDur
@@ -52,14 +52,14 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	c := &CByteCache{
 		config: config,
 		status: cacheStatusActive,
-		mask:   uint64(config.Shards - 1),
+		mask:   uint64(config.Buckets - 1),
 		nowPtr: &now,
 	}
-	c.shards = make([]*shard, config.Shards)
-	for i := range c.shards {
-		c.shards[i] = &shard{
+	c.buckets = make([]*bucket, config.Buckets)
+	for i := range c.buckets {
+		c.buckets[i] = &bucket{
 			config:  config,
-			maxSize: uint32(uint64(config.MaxSize) / uint64(config.Shards)),
+			maxSize: uint32(uint64(config.MaxSize) / uint64(config.Buckets)),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
 			nowPtr:  c.nowPtr,
@@ -104,8 +104,8 @@ func (c *CByteCache) Set(key string, data []byte) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.HashFn(key)
-	shard := c.shards[h&c.mask]
-	return shard.set(h, data)
+	bucket := c.buckets[h&c.mask]
+	return bucket.set(h, data)
 }
 
 func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
@@ -119,8 +119,8 @@ func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.HashFn(key)
-	shard := c.shards[h&c.mask]
-	return shard.setm(h, m)
+	bucket := c.buckets[h&c.mask]
+	return bucket.setm(h, m)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {
@@ -132,16 +132,16 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 		return dst, err
 	}
 	h := c.config.HashFn(key)
-	shard := c.shards[h&c.mask]
-	return shard.get(dst, h)
+	bucket := c.buckets[h&c.mask]
+	return bucket.get(dst, h)
 }
 
 func (c *CByteCache) evict() error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
-	count := min(evictWorkers, uint32(c.config.Shards))
-	shardQueue := make(chan uint, count)
+	count := min(evictWorkers, uint32(c.config.Buckets))
+	bucketQueue := make(chan uint, count)
 	var wg sync.WaitGroup
 
 	for i := uint32(0); i < count; i++ {
@@ -149,10 +149,10 @@ func (c *CByteCache) evict() error {
 		go func() {
 			defer wg.Done()
 			for {
-				if idx, ok := <-shardQueue; ok {
-					shard := c.shards[idx]
-					if err := shard.bulkEvict(); err != nil && c.config.Logger != nil {
-						c.config.Logger.Printf("shard %d eviction failed with error: %s\n", idx, err.Error())
+				if idx, ok := <-bucketQueue; ok {
+					bucket := c.buckets[idx]
+					if err := bucket.bulkEvict(); err != nil && c.config.Logger != nil {
+						c.config.Logger.Printf("bucket %d eviction failed with error: %s\n", idx, err.Error())
 					}
 					continue
 				}
@@ -164,10 +164,10 @@ func (c *CByteCache) evict() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := uint(0); i < c.config.Shards; i++ {
-			shardQueue <- i
+		for i := uint(0); i < c.config.Buckets; i++ {
+			bucketQueue <- i
 		}
-		close(shardQueue)
+		close(bucketQueue)
 	}()
 
 	wg.Wait()
