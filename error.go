@@ -9,7 +9,7 @@ var (
 	ErrBadCache      = errors.New("cache uninitialized, use NewCByteCache()")
 	ErrCacheClosed   = errors.New("cache closed")
 	ErrBadHashFn     = errors.New("you must provide hash function")
-	ErrBadBuckets    = errors.New("buckets count must be power of two")
+	ErrBadBuckets    = errors.New("buckets count must be power of two and great than zero")
 	ErrNotFound      = errors.New("entry not found")
 	ErrEntryTooBig   = errors.New("entry too big")
 	ErrEntryEmpty    = errors.New("entry is empty")

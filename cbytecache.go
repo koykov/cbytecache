@@ -26,14 +26,14 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config.HashFn == nil {
 		return nil, ErrBadHashFn
 	}
-	if (config.Buckets & (config.Buckets - 1)) != 0 {
+	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
 	}
 	if uint64(config.MaxSize)/uint64(config.Buckets) > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
 			config.Buckets, config.MaxSize, MaxBucketSize)
 	}
-	if config.Expire < MinExpireInterval {
+	if config.Expire > 0 && config.Expire < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
 	if config.Vacuum > 0 && config.Vacuum <= config.Expire {
