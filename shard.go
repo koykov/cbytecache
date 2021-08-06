@@ -66,12 +66,13 @@ func (s *shard) setLF(h uint64, b []byte) error {
 
 	if s.arenaOffset >= s.alen() {
 		if s.alen()*ArenaSize+ArenaSize > s.maxSize {
+			s.m().NoSpace()
 			return ErrNoSpace
 		}
 	alloc1:
+		s.m().Alloc(ArenaSize)
 		arena := allocArena(s.alen())
 		s.arena = append(s.arena, *arena)
-		s.m().Grow(ArenaSize)
 		if s.alen() <= s.arenaOffset {
 			goto alloc1
 		}
@@ -96,6 +97,7 @@ func (s *shard) setLF(h uint64, b []byte) error {
 				return ErrNoSpace
 			}
 		alloc2:
+			s.m().Alloc(ArenaSize)
 			arena := allocArena(s.alen())
 			s.arena = append(s.arena, *arena)
 			if s.alen() <= s.arenaOffset {
@@ -281,6 +283,7 @@ func (s *shard) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	s.arenaBuf = append(s.arenaBuf[:0], s.arena[:arenaIdx]...)
 	copy(s.arena, s.arena[arenaIdx:])
 	s.arena = append(s.arena[:arenaIdx], s.arenaBuf...)
+	s.m().Free(uint32(len(s.arenaBuf)) * ArenaSize)
 
 	_ = s.arena[al-1]
 	for i := 0; i < al; i++ {
@@ -319,8 +322,8 @@ func (s *shard) evictRange(wg *sync.WaitGroup, z int) {
 }
 
 func (s *shard) evict(e *entry) {
-	delete(s.index, e.hash)
 	s.m().Evict(e.length)
+	delete(s.index, e.hash)
 }
 
 func (s *shard) checkStatus() error {

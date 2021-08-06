@@ -2,8 +2,8 @@ package cbytecache
 
 type DummyMetrics struct{}
 
-func (*DummyMetrics) Grow(_ uint32)    {}
-func (*DummyMetrics) Reduce(_ uint32)  {}
+func (*DummyMetrics) Alloc(_ uint32)   {}
+func (*DummyMetrics) Free(_ uint32)    {}
 func (*DummyMetrics) Release(_ uint32) {}
 func (*DummyMetrics) Set(_ uint16)     {}
 func (*DummyMetrics) Evict(_ uint16)   {}
