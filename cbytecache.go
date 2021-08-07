@@ -29,7 +29,8 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
 	}
-	if uint64(config.MaxSize)/uint64(config.Buckets) > MaxBucketSize {
+	shardSize := uint64(config.MaxSize) / uint64(config.Buckets)
+	if shardSize > 0 && shardSize > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
 			config.Buckets, config.MaxSize, MaxBucketSize)
 	}
@@ -59,7 +60,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	for i := range c.buckets {
 		c.buckets[i] = &bucket{
 			config:  config,
-			maxSize: uint32(uint64(config.MaxSize) / uint64(config.Buckets)),
+			maxSize: uint32(shardSize),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
 			nowPtr:  c.nowPtr,

@@ -24,139 +24,139 @@ type bucket struct {
 	arenaOffset uint32
 }
 
-func (s *bucket) set(h uint64, b []byte) (err error) {
-	if err = s.checkStatus(); err != nil {
+func (b *bucket) set(h uint64, p []byte) (err error) {
+	if err = b.checkStatus(); err != nil {
 		return
 	}
 
-	s.mux.Lock()
-	err = s.setLF(h, b)
-	s.mux.Unlock()
+	b.mux.Lock()
+	err = b.setLF(h, p)
+	b.mux.Unlock()
 	return
 }
 
-func (s *bucket) setm(h uint64, m MarshallerTo) (err error) {
-	if err = s.checkStatus(); err != nil {
+func (b *bucket) setm(h uint64, m MarshallerTo) (err error) {
+	if err = b.checkStatus(); err != nil {
 		return
 	}
 
-	s.mux.Lock()
-	defer s.mux.Unlock()
-	s.buf.ResetLen()
-	if _, err = s.buf.WriteMarshallerTo(m); err != nil {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+	b.buf.ResetLen()
+	if _, err = b.buf.WriteMarshallerTo(m); err != nil {
 		return
 	}
-	err = s.setLF(h, s.buf.Bytes())
+	err = b.setLF(h, b.buf.Bytes())
 	return
 }
 
-func (s *bucket) setLF(h uint64, b []byte) error {
+func (b *bucket) setLF(h uint64, p []byte) error {
 	// Look for existing entry to reset it.
 	var e *entry
-	if idx, ok := s.index[h]; ok {
-		if idx < s.elen() {
-			e = &s.entry[idx]
+	if idx, ok := b.index[h]; ok {
+		if idx < b.elen() {
+			e = &b.entry[idx]
 		}
 	}
 	if e != nil {
 		e.hash = 0
 	}
 
-	blen := uint16(len(b))
+	blen := uint16(len(p))
 
-	if s.arenaOffset >= s.alen() {
-		if s.alen()*ArenaSize+ArenaSize > s.maxSize {
-			s.m().NoSpace()
+	if b.arenaOffset >= b.alen() {
+		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+			b.m().NoSpace()
 			return ErrNoSpace
 		}
 	alloc1:
-		s.m().Alloc(ArenaSize)
-		arena := allocArena(s.alen())
-		s.arena = append(s.arena, *arena)
-		if s.alen() <= s.arenaOffset {
+		b.m().Alloc(ArenaSize)
+		arena := allocArena(b.alen())
+		b.arena = append(b.arena, *arena)
+		if b.alen() <= b.arenaOffset {
 			goto alloc1
 		}
 	}
-	arena := &s.arena[s.arenaOffset]
+	arena := &b.arena[b.arenaOffset]
 	arenaID := &arena.id
 	arenaOffset := arena.offset
 	arenaRest := ArenaSize - arena.offset
-	rest := uint32(len(b))
+	rest := uint32(len(p))
 	if arenaRest >= rest {
-		arena.bytesCopy(arena.offset, b)
+		arena.bytesCopy(arena.offset, p)
 		arena.offset += rest
 	} else {
 		// todo test me.
 	loop:
-		arena.bytesCopy(arena.offset, b[:arenaRest])
-		b = b[arenaRest:]
+		arena.bytesCopy(arena.offset, p[:arenaRest])
+		p = p[arenaRest:]
 		rest -= arenaRest
-		s.arenaOffset++
-		if s.arenaOffset >= s.alen() {
-			if s.alen()*ArenaSize+ArenaSize > s.maxSize {
+		b.arenaOffset++
+		if b.arenaOffset >= b.alen() {
+			if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
 				return ErrNoSpace
 			}
 		alloc2:
-			s.m().Alloc(ArenaSize)
-			arena := allocArena(s.alen())
-			s.arena = append(s.arena, *arena)
-			if s.alen() <= s.arenaOffset {
+			b.m().Alloc(ArenaSize)
+			arena := allocArena(b.alen())
+			b.arena = append(b.arena, *arena)
+			if b.alen() <= b.arenaOffset {
 				goto alloc2
 			}
 		}
-		arena = &s.arena[s.arenaOffset]
+		arena = &b.arena[b.arenaOffset]
 		arenaRest = min(rest, ArenaSize)
 		if rest > 0 {
 			goto loop
 		}
 	}
 
-	s.entry = append(s.entry, entry{
+	b.entry = append(b.entry, entry{
 		hash:   h,
 		offset: arenaOffset,
 		length: blen,
-		expire: s.now() + uint32(s.config.Expire)/1e9,
+		expire: b.now() + uint32(b.config.Expire)/1e9,
 		aidptr: arenaID,
 	})
-	s.index[h] = s.elen() - 1
+	b.index[h] = b.elen() - 1
 
-	s.m().Set(blen)
+	b.m().Set(blen)
 	return ErrOK
 }
 
-func (s *bucket) get(dst []byte, h uint64) ([]byte, error) {
-	if err := s.checkStatus(); err != nil {
+func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
+	if err := b.checkStatus(); err != nil {
 		return dst, err
 	}
 
-	s.mux.RLock()
-	defer s.mux.RUnlock()
+	b.mux.RLock()
+	defer b.mux.RUnlock()
 	var (
 		idx uint32
 		ok  bool
 	)
-	if idx, ok = s.index[h]; !ok {
-		s.m().Miss()
+	if idx, ok = b.index[h]; !ok {
+		b.m().Miss()
 		return dst, ErrNotFound
 	}
-	if idx >= s.elen() {
-		s.m().Miss()
+	if idx >= b.elen() {
+		b.m().Miss()
 		return dst, ErrNotFound
 	}
-	entry := &s.entry[idx]
-	if entry.expire < s.now() {
-		s.m().Expire()
+	entry := &b.entry[idx]
+	if entry.expire < b.now() {
+		b.m().Expire()
 		return dst, ErrNotFound
 	}
 
 	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
-	if arenaID >= s.alen() {
-		s.m().Miss()
+	if arenaID >= b.alen() {
+		b.m().Miss()
 		return dst, ErrNotFound
 	}
-	arena := &s.arena[arenaID]
+	arena := &b.arena[arenaID]
 
 	arenaRest := ArenaSize - arenaOffset
 	if entry.offset+uint32(entry.length) < ArenaSize {
@@ -168,11 +168,11 @@ func (s *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
 		rest -= arenaRest
 		arenaID++
-		if arenaID >= s.alen() {
-			s.m().Corrupt()
+		if arenaID >= b.alen() {
+			b.m().Corrupt()
 			return dst, ErrEntryCorrupt
 		}
-		arena = &s.arena[arenaID]
+		arena = &b.arena[arenaID]
 		arenaOffset = 0
 		arenaRest = min(rest, ArenaSize)
 		if rest > 0 {
@@ -180,25 +180,25 @@ func (s *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		}
 	}
 
-	s.m().Hit()
+	b.m().Hit()
 	return dst, ErrOK
 }
 
-func (s *bucket) bulkEvict() error {
-	if err := s.checkStatus(); err != nil {
+func (b *bucket) bulkEvict() error {
+	if err := b.checkStatus(); err != nil {
 		return err
 	}
 
-	s.mux.Lock()
-	defer s.mux.Unlock()
+	b.mux.Lock()
+	defer b.mux.Unlock()
 
-	el := s.elen()
+	el := b.elen()
 	if el == 0 {
 		return ErrOK
 	}
 
-	entry := s.entry
-	now := s.now()
+	entry := b.entry
+	now := b.now()
 	_ = entry[el-1]
 	z := sort.Search(int(el), func(i int) bool {
 		return now <= entry[i].expire
@@ -208,69 +208,69 @@ func (s *bucket) bulkEvict() error {
 		return ErrOK
 	}
 
-	arenaID := s.entry[z].arenaID()
+	arenaID := b.entry[z].arenaID()
 
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go s.evictRange(&wg, z)
+	go b.evictRange(&wg, z)
 
 	wg.Add(1)
-	go s.recycleArena(&wg, arenaID)
+	go b.recycleArena(&wg, arenaID)
 
 	wg.Wait()
 
 	return ErrOK
 }
 
-func (s *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
+func (b *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	defer wg.Done()
 	var arenaIdx int
-	al := len(s.arena)
+	al := len(b.arena)
 	if al == 0 {
 		return
 	}
 	if al < 256 {
-		_ = s.arena[al-1]
+		_ = b.arena[al-1]
 		for i := 0; i < al; i++ {
-			if s.arena[i].id == arenaID {
+			if b.arena[i].id == arenaID {
 				arenaIdx = i
 				break
 			}
 		}
 	} else {
 		al8 := al - al%8
-		_ = s.arena[al-1]
+		_ = b.arena[al-1]
 		for i := 0; i < al8; i += 8 {
-			if s.arena[i].id == arenaID {
+			if b.arena[i].id == arenaID {
 				arenaIdx = i
 				break
 			}
-			if s.arena[i+1].id == arenaID {
+			if b.arena[i+1].id == arenaID {
 				arenaIdx = i + 1
 				break
 			}
-			if s.arena[i+2].id == arenaID {
+			if b.arena[i+2].id == arenaID {
 				arenaIdx = i + 2
 				break
 			}
-			if s.arena[i+3].id == arenaID {
+			if b.arena[i+3].id == arenaID {
 				arenaIdx = i + 3
 				break
 			}
-			if s.arena[i+4].id == arenaID {
+			if b.arena[i+4].id == arenaID {
 				arenaIdx = i + 4
 				break
 			}
-			if s.arena[i+5].id == arenaID {
+			if b.arena[i+5].id == arenaID {
 				arenaIdx = i + 5
 				break
 			}
-			if s.arena[i+6].id == arenaID {
+			if b.arena[i+6].id == arenaID {
 				arenaIdx = i + 6
 				break
 			}
-			if s.arena[i+7].id == arenaID {
+			if b.arena[i+7].id == arenaID {
 				arenaIdx = i + 7
 				break
 			}
@@ -280,54 +280,54 @@ func (s *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 		return
 	}
 
-	s.arenaBuf = append(s.arenaBuf[:0], s.arena[:arenaIdx]...)
-	copy(s.arena, s.arena[arenaIdx:])
-	s.arena = append(s.arena[:arenaIdx], s.arenaBuf...)
-	s.m().Free(uint32(len(s.arenaBuf)) * ArenaSize)
+	b.arenaBuf = append(b.arenaBuf[:0], b.arena[:arenaIdx]...)
+	copy(b.arena, b.arena[arenaIdx:])
+	b.arena = append(b.arena[:arenaIdx], b.arenaBuf...)
+	b.m().Free(uint32(len(b.arenaBuf)) * ArenaSize)
 
-	_ = s.arena[al-1]
+	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
-		s.arena[i].id = uint32(i)
+		b.arena[i].id = uint32(i)
 	}
 }
 
-func (s *bucket) evictRange(wg *sync.WaitGroup, z int) {
+func (b *bucket) evictRange(wg *sync.WaitGroup, z int) {
 	defer wg.Done()
-	el := s.elen()
+	el := b.elen()
 	if z < 256 {
-		_ = s.entry[el-1]
+		_ = b.entry[el-1]
 		for i := 0; i < z; i++ {
-			s.evict(&s.entry[i])
+			b.evict(&b.entry[i])
 		}
 	} else {
 		z8 := z - z%8
-		_ = s.entry[el-1]
+		_ = b.entry[el-1]
 		for i := 0; i < z8; i += 8 {
-			s.evict(&s.entry[i])
-			s.evict(&s.entry[i+1])
-			s.evict(&s.entry[i+2])
-			s.evict(&s.entry[i+3])
-			s.evict(&s.entry[i+4])
-			s.evict(&s.entry[i+5])
-			s.evict(&s.entry[i+6])
-			s.evict(&s.entry[i+7])
+			b.evict(&b.entry[i])
+			b.evict(&b.entry[i+1])
+			b.evict(&b.entry[i+2])
+			b.evict(&b.entry[i+3])
+			b.evict(&b.entry[i+4])
+			b.evict(&b.entry[i+5])
+			b.evict(&b.entry[i+6])
+			b.evict(&b.entry[i+7])
 		}
 		for i := z8; i < z; i++ {
-			s.evict(&s.entry[i])
+			b.evict(&b.entry[i])
 		}
 	}
 
-	copy(s.entry, s.entry[z:])
-	s.entry = s.entry[:el-uint32(z)]
+	copy(b.entry, b.entry[z:])
+	b.entry = b.entry[:el-uint32(z)]
 }
 
-func (s *bucket) evict(e *entry) {
-	s.m().Evict(e.length)
-	delete(s.index, e.hash)
+func (b *bucket) evict(e *entry) {
+	b.m().Evict(e.length)
+	delete(b.index, e.hash)
 }
 
-func (s *bucket) checkStatus() error {
-	if status := atomic.LoadUint32(&s.status); status != bucketStatusActive {
+func (b *bucket) checkStatus() error {
+	if status := atomic.LoadUint32(&b.status); status != bucketStatusActive {
 		if status == bucketStatusService {
 			return ErrBucketService
 		}
@@ -338,20 +338,20 @@ func (s *bucket) checkStatus() error {
 	return nil
 }
 
-func (s *bucket) now() uint32 {
-	return atomic.LoadUint32(s.nowPtr)
+func (b *bucket) now() uint32 {
+	return atomic.LoadUint32(b.nowPtr)
 }
 
-func (s *bucket) alen() uint32 {
-	return uint32(len(s.arena))
+func (b *bucket) alen() uint32 {
+	return uint32(len(b.arena))
 }
 
-func (s *bucket) elen() uint32 {
-	return uint32(len(s.entry))
+func (b *bucket) elen() uint32 {
+	return uint32(len(b.entry))
 }
 
-func (s *bucket) m() MetricsWriter {
-	return s.config.MetricsWriter
+func (b *bucket) m() MetricsWriter {
+	return b.config.MetricsWriter
 }
 
 func min(a, b uint32) uint32 {
