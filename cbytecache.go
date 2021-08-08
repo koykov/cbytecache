@@ -15,6 +15,8 @@ type CByteCache struct {
 	buckets []*bucket
 	mask    uint64
 	nowPtr  *uint32
+
+	maxEntrySize uint32
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -55,6 +57,8 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		status: cacheStatusActive,
 		mask:   uint64(config.Buckets - 1),
 		nowPtr: &now,
+
+		maxEntrySize: uint32(shardSize),
 	}
 	c.buckets = make([]*bucket, config.Buckets)
 	for i := range c.buckets {
@@ -98,10 +102,11 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
-	if len(data) == 0 {
+	dl := uint32(len(data))
+	if dl == 0 {
 		return ErrEntryEmpty
 	}
-	if len(data) > MaxEntrySize {
+	if dl > c.maxEntrySize {
 		return ErrEntryTooBig
 	}
 	h := c.config.HashFn(key)
@@ -113,10 +118,11 @@ func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
-	if m.Size() == 0 {
+	ml := uint32(m.Size())
+	if ml == 0 {
 		return ErrEntryEmpty
 	}
-	if m.Size() > MaxEntrySize {
+	if ml > c.maxEntrySize {
 		return ErrEntryTooBig
 	}
 	h := c.config.HashFn(key)

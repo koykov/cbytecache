@@ -6,13 +6,11 @@ import (
 )
 
 const (
-	MaxEntrySize  = math.MaxUint16
 	MaxBucketSize = math.MaxUint32
 
 	MinExpireInterval = time.Second
 
-	// todo increase after tests.
-	ArenaSize = uint32(Kilobyte)
+	ArenaSize = uint32(16 * Megabyte)
 
 	cacheStatusNil    = 0
 	cacheStatusActive = 1

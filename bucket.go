@@ -62,7 +62,7 @@ func (b *bucket) setLF(h uint64, p []byte) error {
 		e.hash = 0
 	}
 
-	blen := uint16(len(p))
+	blen := uint32(len(p))
 
 	if b.arenaOffset >= b.alen() {
 		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
@@ -159,11 +159,11 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	arena := &b.arena[arenaID]
 
 	arenaRest := ArenaSize - arenaOffset
-	if entry.offset+uint32(entry.length) < ArenaSize {
-		dst = append(dst, arena.bytesRange(arenaOffset, uint32(entry.length))...)
+	if entry.offset+entry.length < ArenaSize {
+		dst = append(dst, arena.bytesRange(arenaOffset, entry.length)...)
 	} else {
 		// todo test me.
-		rest := uint32(entry.length)
+		rest := entry.length
 	loop:
 		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
 		rest -= arenaRest
