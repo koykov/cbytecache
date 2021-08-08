@@ -11,6 +11,7 @@ var (
 	ErrBadHashFn     = errors.New("you must provide hash function")
 	ErrBadBuckets    = errors.New("buckets count must be power of two and great than zero")
 	ErrNotFound      = errors.New("entry not found")
+	ErrEntryExists   = errors.New("entry already exists")
 	ErrEntryTooBig   = errors.New("entry too big")
 	ErrEntryEmpty    = errors.New("entry is empty")
 	ErrEntryCorrupt  = errors.New("entry corrupted")

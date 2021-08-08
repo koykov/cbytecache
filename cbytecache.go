@@ -99,6 +99,22 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
+	return c.set(key, data, c.config.ForceSet)
+}
+
+func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
+	return c.setm(key, m, c.config.ForceSet)
+}
+
+func (c *CByteCache) FSet(key string, data []byte) error {
+	return c.set(key, data, true)
+}
+
+func (c *CByteCache) FSetMarshallerTo(key string, m MarshallerTo) error {
+	return c.setm(key, m, true)
+}
+
+func (c *CByteCache) set(key string, data []byte, force bool) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
@@ -111,10 +127,10 @@ func (c *CByteCache) Set(key string, data []byte) error {
 	}
 	h := c.config.HashFn(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.set(h, data)
+	return bucket.set(h, data, force)
 }
 
-func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
+func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
@@ -127,7 +143,7 @@ func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
 	}
 	h := c.config.HashFn(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.setm(h, m)
+	return bucket.setm(h, m, force)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {

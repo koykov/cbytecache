@@ -24,18 +24,18 @@ type bucket struct {
 	arenaOffset uint32
 }
 
-func (b *bucket) set(h uint64, p []byte) (err error) {
+func (b *bucket) set(h uint64, p []byte, force bool) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
 	}
 
 	b.mux.Lock()
-	err = b.setLF(h, p)
+	err = b.setLF(h, p, force)
 	b.mux.Unlock()
 	return
 }
 
-func (b *bucket) setm(h uint64, m MarshallerTo) (err error) {
+func (b *bucket) setm(h uint64, m MarshallerTo, force bool) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
 	}
@@ -46,11 +46,11 @@ func (b *bucket) setm(h uint64, m MarshallerTo) (err error) {
 	if _, err = b.buf.WriteMarshallerTo(m); err != nil {
 		return
 	}
-	err = b.setLF(h, b.buf.Bytes())
+	err = b.setLF(h, b.buf.Bytes(), force)
 	return
 }
 
-func (b *bucket) setLF(h uint64, p []byte) error {
+func (b *bucket) setLF(h uint64, p []byte, force bool) error {
 	// Look for existing entry to reset it.
 	var e *entry
 	if idx, ok := b.index[h]; ok {
@@ -59,6 +59,9 @@ func (b *bucket) setLF(h uint64, p []byte) error {
 		}
 	}
 	if e != nil {
+		if e.expire >= b.now() && !force {
+			return ErrEntryExists
+		}
 		e.hash = 0
 	}
 
