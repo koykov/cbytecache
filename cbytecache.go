@@ -31,8 +31,8 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
 	}
-	shardSize := uint64(config.MaxSize) / uint64(config.Buckets)
-	if shardSize > 0 && shardSize > MaxBucketSize {
+	bucketSize := uint64(config.MaxSize) / uint64(config.Buckets)
+	if bucketSize > 0 && bucketSize > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
 			config.Buckets, config.MaxSize, MaxBucketSize)
 	}
@@ -58,13 +58,13 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		mask:   uint64(config.Buckets - 1),
 		nowPtr: &now,
 
-		maxEntrySize: uint32(shardSize),
+		maxEntrySize: uint32(bucketSize),
 	}
 	c.buckets = make([]*bucket, config.Buckets)
 	for i := range c.buckets {
 		c.buckets[i] = &bucket{
 			config:  config,
-			maxSize: uint32(shardSize),
+			maxSize: uint32(bucketSize),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
 			nowPtr:  c.nowPtr,
@@ -122,7 +122,7 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 	if dl == 0 {
 		return ErrEntryEmpty
 	}
-	if dl > c.maxEntrySize {
+	if c.maxEntrySize > 0 && dl > c.maxEntrySize {
 		return ErrEntryTooBig
 	}
 	h := c.config.HashFn(key)
