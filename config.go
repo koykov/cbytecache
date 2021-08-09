@@ -5,12 +5,13 @@ import (
 )
 
 type Config struct {
-	HashFn   func(string) uint64
-	Buckets  uint
-	Expire   time.Duration
-	Vacuum   time.Duration
-	ForceSet bool
-	MaxSize  MemorySize
+	HashFn         func(string) uint64
+	Buckets        uint
+	Expire         time.Duration
+	Vacuum         time.Duration
+	ForceSet       bool
+	CollisionCheck bool
+	MaxSize        MemorySize
 
 	MetricsWriter MetricsWriter
 	Logger        Logger

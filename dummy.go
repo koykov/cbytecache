@@ -11,6 +11,7 @@ func (*DummyMetrics) Miss()            {}
 func (*DummyMetrics) Hit()             {}
 func (*DummyMetrics) Expire()          {}
 func (*DummyMetrics) Corrupt()         {}
+func (*DummyMetrics) Collision()       {}
 func (*DummyMetrics) NoSpace()         {}
 
 type DummyLog struct{}

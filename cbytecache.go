@@ -127,7 +127,7 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 	}
 	h := c.config.HashFn(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.set(h, data, force)
+	return bucket.set(key, h, data, force)
 }
 
 func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
@@ -143,7 +143,7 @@ func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
 	}
 	h := c.config.HashFn(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.setm(h, m, force)
+	return bucket.setm(key, h, m, force)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {

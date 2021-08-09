@@ -10,5 +10,6 @@ type MetricsWriter interface {
 	Hit()
 	Expire()
 	Corrupt()
+	Collision()
 	NoSpace()
 }

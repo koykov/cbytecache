@@ -1,11 +1,13 @@
 package cbytecache
 
 import (
+	"encoding/binary"
 	"sort"
 	"sync"
 	"sync/atomic"
 
 	"github.com/koykov/cbytebuf"
+	"github.com/koykov/fastconv"
 )
 
 type bucket struct {
@@ -24,18 +26,18 @@ type bucket struct {
 	arenaOffset uint32
 }
 
-func (b *bucket) set(h uint64, p []byte, force bool) (err error) {
+func (b *bucket) set(key string, h uint64, p []byte, force bool) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
 	}
 
 	b.mux.Lock()
-	err = b.setLF(h, p, force)
+	err = b.setLF(key, h, p, force)
 	b.mux.Unlock()
 	return
 }
 
-func (b *bucket) setm(h uint64, m MarshallerTo, force bool) (err error) {
+func (b *bucket) setm(key string, h uint64, m MarshallerTo, force bool) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
 	}
@@ -46,26 +48,56 @@ func (b *bucket) setm(h uint64, m MarshallerTo, force bool) (err error) {
 	if _, err = b.buf.WriteMarshallerTo(m); err != nil {
 		return
 	}
-	err = b.setLF(h, b.buf.Bytes(), force)
+	err = b.setLF(key, h, b.buf.Bytes(), force)
 	return
 }
 
-func (b *bucket) setLF(h uint64, p []byte, force bool) error {
+func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 	// Look for existing entry to reset it.
-	var e *entry
+	var (
+		e   *entry
+		pl  uint32
+		err error
+	)
 	if idx, ok := b.index[h]; ok {
 		if idx < b.elen() {
 			e = &b.entry[idx]
 		}
 	}
+
+	if p, pl, err = b.c7n(key, p); err != nil {
+		return err
+	}
+
 	if e != nil {
+		if b.config.CollisionCheck {
+			bl := b.buf.Len()
+			if err = b.buf.GrowDelta(int(e.length)); err != nil {
+				return err
+			}
+			dst := b.buf.Bytes()[bl:]
+			if dst, err = b.getLF(dst[:0], e, &DummyMetrics{}); err != nil {
+				return err
+			}
+			if len(dst) < 4 {
+				return ErrEntryCorrupt
+			}
+			kl := binary.LittleEndian.Uint32(dst[:4])
+			dst = dst[4:]
+			if kl >= uint32(len(dst)) {
+				return ErrEntryCorrupt
+			}
+			key1 := fastconv.B2S(dst[:kl])
+			if key1 != key {
+				b.m().Collision()
+				return ErrEntryCollision
+			}
+		}
 		if e.expire >= b.now() && !force {
 			return ErrEntryExists
 		}
 		e.hash = 0
 	}
-
-	blen := uint32(len(p))
 
 	if b.arenaOffset >= b.alen() {
 		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
@@ -117,13 +149,13 @@ func (b *bucket) setLF(h uint64, p []byte, force bool) error {
 	b.entry = append(b.entry, entry{
 		hash:   h,
 		offset: arenaOffset,
-		length: blen,
+		length: pl,
 		expire: b.now() + uint32(b.config.Expire)/1e9,
 		aidptr: arenaID,
 	})
 	b.index[h] = b.elen() - 1
 
-	b.m().Set(blen)
+	b.m().Set(pl)
 	return ErrOK
 }
 
@@ -152,11 +184,15 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		return dst, ErrNotFound
 	}
 
+	return b.getLF(dst, entry, b.m())
+}
+
+func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, error) {
 	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
-		b.m().Miss()
+		mw.Miss()
 		return dst, ErrNotFound
 	}
 	arena := &b.arena[arenaID]
@@ -172,7 +208,7 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		rest -= arenaRest
 		arenaID++
 		if arenaID >= b.alen() {
-			b.m().Corrupt()
+			mw.Corrupt()
 			return dst, ErrEntryCorrupt
 		}
 		arena = &b.arena[arenaID]
@@ -182,9 +218,31 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 			goto loop
 		}
 	}
-
-	b.m().Hit()
+	mw.Hit()
 	return dst, ErrOK
+}
+
+func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
+	pl := uint32(len(p))
+	if !b.config.CollisionCheck {
+		return p, pl, nil
+	}
+	var err error
+	bl := b.buf.Len()
+	if err = b.buf.GrowDelta(4); err != nil {
+		return p, pl, err
+	}
+	kl := uint32(len(key))
+	binary.LittleEndian.PutUint32(b.buf.Bytes(), kl)
+	if _, err = b.buf.WriteString(key); err != nil {
+		return p, pl, err
+	}
+	if _, err = b.buf.Write(p); err != nil {
+		return p, pl, err
+	}
+	p = b.buf.Bytes()[bl:]
+	pl = uint32(len(p))
+	return p, pl, err
 }
 
 func (b *bucket) bulkEvict() error {
