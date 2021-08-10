@@ -20,6 +20,7 @@ const (
 	bucketStatusService = 1
 	bucketStatusCorrupt = 2
 
-	resetWorkers = 16
-	evictWorkers = 16
+	resetWorkers   = 16
+	releaseWorkers = 16
+	evictWorkers   = 16
 )

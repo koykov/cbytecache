@@ -163,6 +163,10 @@ func (c *CByteCache) Reset() error {
 	return c.bulkExec(resetWorkers, "reset", func(b *bucket) error { return b.reset() })
 }
 
+func (c *CByteCache) Release() error {
+	return c.bulkExec(releaseWorkers, "release", func(b *bucket) error { return b.release() })
+}
+
 func (c *CByteCache) evict() error {
 	return c.bulkExec(evictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }

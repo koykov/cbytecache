@@ -31,3 +31,7 @@ func (a *arena) bytesRange(offset, length uint32) []byte {
 	}
 	return cbyte.Bytes(h)
 }
+
+func (a *arena) release() {
+	cbyte.ReleaseHeader(a.h)
+}

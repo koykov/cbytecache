@@ -407,6 +407,38 @@ func (b *bucket) reset() error {
 	return ErrOK
 }
 
+func (b *bucket) release() error {
+	if err := b.checkStatus(); err != nil {
+		return err
+	}
+
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	b.buf.Release()
+	b.arenaOffset = 0
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		b.evictRange(len(b.entry))
+		b.entry = b.entry[:0]
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		var i uint32
+		_ = b.arena[b.alen()-1]
+		for i = 0; i < b.alen(); i++ {
+			b.arena[i].release()
+		}
+	}()
+
+	return ErrOK
+}
+
 func (b *bucket) checkStatus() error {
 	if status := atomic.LoadUint32(&b.status); status != bucketStatusActive {
 		if status == bucketStatusService {
