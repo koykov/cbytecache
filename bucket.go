@@ -274,18 +274,23 @@ func (b *bucket) bulkEvict() error {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	go b.evictRange(&wg, z)
+	go func() {
+		b.evictRange(z)
+		wg.Done()
+	}()
 
 	wg.Add(1)
-	go b.recycleArena(&wg, arenaID)
+	go func() {
+		b.recycleArena(arenaID)
+		wg.Done()
+	}()
 
 	wg.Wait()
 
 	return ErrOK
 }
 
-func (b *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
-	defer wg.Done()
+func (b *bucket) recycleArena(arenaID uint32) {
 	var arenaIdx int
 	al := len(b.arena)
 	if al == 0 {
@@ -352,8 +357,7 @@ func (b *bucket) recycleArena(wg *sync.WaitGroup, arenaID uint32) {
 	}
 }
 
-func (b *bucket) evictRange(wg *sync.WaitGroup, z int) {
-	defer wg.Done()
+func (b *bucket) evictRange(z int) {
 	el := b.elen()
 	if z < 256 {
 		_ = b.entry[el-1]
@@ -385,6 +389,22 @@ func (b *bucket) evictRange(wg *sync.WaitGroup, z int) {
 func (b *bucket) evict(e *entry) {
 	b.m().Evict(e.length)
 	delete(b.index, e.hash)
+}
+
+func (b *bucket) reset() error {
+	if err := b.checkStatus(); err != nil {
+		return err
+	}
+
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	b.buf.ResetLen()
+	b.arenaOffset = 0
+	b.evictRange(len(b.entry))
+	b.entry = b.entry[:0]
+
+	return ErrOK
 }
 
 func (b *bucket) checkStatus() error {
