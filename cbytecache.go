@@ -159,11 +159,19 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	return bucket.get(dst, h)
 }
 
+func (c *CByteCache) Reset() error {
+	return c.bulkExec(resetWorkers, "reset", func(b *bucket) error { return b.reset() })
+}
+
 func (c *CByteCache) evict() error {
+	return c.bulkExec(resetWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
+}
+
+func (c *CByteCache) bulkExec(workers int, op string, fn func(*bucket) error) error {
 	if err := c.checkCache(); err != nil {
 		return err
 	}
-	count := min(evictWorkers, uint32(c.config.Buckets))
+	count := min(uint32(workers), uint32(c.config.Buckets))
 	bucketQueue := make(chan uint, count)
 	var wg sync.WaitGroup
 
@@ -174,8 +182,8 @@ func (c *CByteCache) evict() error {
 			for {
 				if idx, ok := <-bucketQueue; ok {
 					bucket := c.buckets[idx]
-					if err := bucket.bulkEvict(); err != nil && c.config.Logger != nil {
-						c.config.Logger.Printf("bucket %d eviction failed with error: %s\n", idx, err.Error())
+					if err := fn(bucket); err != nil && c.config.Logger != nil {
+						c.config.Logger.Printf("bucket %d %s failed with error: %s\n", idx, op, err.Error())
 					}
 					continue
 				}
