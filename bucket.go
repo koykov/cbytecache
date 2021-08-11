@@ -251,7 +251,11 @@ func (b *bucket) bulkEvict() error {
 	}
 
 	b.mux.Lock()
-	defer b.mux.Unlock()
+	b.status = bucketStatusService
+	defer func() {
+		b.status = bucketStatusActive
+		b.mux.Unlock()
+	}()
 
 	el := b.elen()
 	if el == 0 {
@@ -397,7 +401,11 @@ func (b *bucket) reset() error {
 	}
 
 	b.mux.Lock()
-	defer b.mux.Unlock()
+	b.status = bucketStatusService
+	defer func() {
+		b.status = bucketStatusActive
+		b.mux.Unlock()
+	}()
 
 	b.buf.ResetLen()
 	b.arenaOffset = 0
@@ -413,7 +421,11 @@ func (b *bucket) release() error {
 	}
 
 	b.mux.Lock()
-	defer b.mux.Unlock()
+	b.status = bucketStatusService
+	defer func() {
+		b.status = bucketStatusActive
+		b.mux.Unlock()
+	}()
 
 	b.buf.Release()
 	b.arenaOffset = 0
@@ -422,16 +434,24 @@ func (b *bucket) release() error {
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		if b.elen() == 0 {
+			return
+		}
 		b.evictRange(len(b.entry))
 		b.entry = b.entry[:0]
-		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
+		al := b.alen()
+		if al == 0 {
+			return
+		}
+		_ = b.arena[al-1]
 		var i uint32
-		_ = b.arena[b.alen()-1]
-		for i = 0; i < b.alen(); i++ {
+		for i = 0; i < al; i++ {
 			b.arena[i].release()
 		}
 	}()
@@ -445,7 +465,7 @@ func (b *bucket) checkStatus() error {
 			return ErrBucketService
 		}
 		if status == bucketStatusCorrupt {
-			// todo return corresponding error.
+			return ErrBucketCorrupt
 		}
 	}
 	return nil
