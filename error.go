@@ -19,5 +19,6 @@ var (
 	ErrExpireDur      = errors.New("expire interval is too short")
 	ErrVacuumDur      = errors.New("vacuum interval must be greater than expire interval")
 	ErrBucketService  = errors.New("cache bucket is under maintenance")
+	ErrBucketCorrupt  = errors.New("cache bucket is corrupted")
 	ErrNoSpace        = errors.New("no space available")
 )

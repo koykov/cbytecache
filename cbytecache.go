@@ -1,6 +1,7 @@
 package cbytecache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -17,6 +18,8 @@ type CByteCache struct {
 	nowPtr  *uint32
 
 	maxEntrySize uint32
+
+	cancelFnClock, cancelFnExpire, cancelFnVacuum context.CancelFunc
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -71,28 +74,36 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		}
 	}
 
+	var ctxClock context.Context
+	ctxClock, c.cancelFnClock = context.WithCancel(context.Background())
 	tickerNow := time.NewTicker(time.Second)
-	go func() {
+	go func(ctx context.Context) {
 		for {
 			select {
-			// todo implement done signal.
 			case <-tickerNow.C:
 				atomic.StoreUint32(c.nowPtr, uint32(time.Now().Unix()))
+			case <-ctx.Done():
+				return
 			}
 		}
-	}()
+	}(ctxClock)
 
 	if config.Expire > 0 {
+		var ctxExpire context.Context
+		ctxExpire, c.cancelFnExpire = context.WithCancel(context.Background())
 		tickerExpire := time.NewTicker(config.Expire)
-		go func() {
+		go func(ctx context.Context) {
 			for {
 				select {
-				// todo implement done signal.
 				case <-tickerExpire.C:
-					//
+					if err := c.evict(); err != nil && c.config.Logger != nil {
+						c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
+					}
+				case <-ctx.Done():
+					return
 				}
 			}
-		}()
+		}(ctxExpire)
 	}
 
 	return c, ErrOK
@@ -165,6 +176,22 @@ func (c *CByteCache) Reset() error {
 
 func (c *CByteCache) Release() error {
 	return c.bulkExec(releaseWorkers, "release", func(b *bucket) error { return b.release() })
+}
+
+func (c *CByteCache) Close() error {
+	if err := c.Release(); err != nil {
+		return err
+	}
+	if c.cancelFnVacuum != nil {
+		c.cancelFnVacuum()
+	}
+	if c.cancelFnExpire != nil {
+		c.cancelFnExpire()
+	}
+	if c.cancelFnClock != nil {
+		c.cancelFnClock()
+	}
+	return ErrOK
 }
 
 func (c *CByteCache) evict() error {
