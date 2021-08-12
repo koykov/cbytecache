@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/koykov/fastconv"
 )
@@ -30,7 +29,7 @@ func assertBytes(t testing.TB, a, b []byte) (eq bool) {
 
 func TestCacheIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int) {
-		conf := DefaultConfig(time.Minute, fastconv.Fnv64aString)
+		conf := DefaultConfig(0, fastconv.Fnv64aString)
 		cache, err := NewCByteCache(conf)
 		if err != nil {
 			t.Fatal(err)
@@ -44,7 +43,7 @@ func TestCacheIO(t *testing.T) {
 			for i := 0; i < entries; i++ {
 				buf = append(buf[:0], "key"...)
 				buf = strconv.AppendInt(buf, int64(i), 10)
-				if err = cache.Set(fastconv.B2S(buf), dataPool[0]); err != nil {
+				if err := cache.Set(fastconv.B2S(buf), dataPool[0]); err != nil {
 					t.Error(err)
 				}
 			}
@@ -53,16 +52,20 @@ func TestCacheIO(t *testing.T) {
 
 		wg.Add(1)
 		go func() {
-			var buf, dst []byte
+			var (
+				buf, dst []byte
+				err      error
+			)
 			for i := 0; i < entries; i++ {
 				buf = append(buf[:0], "key"...)
 				buf = strconv.AppendInt(buf, int64(i), 10)
-				if dst, err = cache.GetTo(dst[:0], fastconv.B2S(buf)); err != nil && err != ErrNotFound {
-					t.Error(err)
+				if dst, err = cache.GetTo(dst[:0], fastconv.B2S(buf)); err != nil {
+					if err != ErrNotFound {
+						t.Error(err)
+					}
+					continue
 				}
-				if err == nil {
-					assertBytes(t, dataPool[0], dst)
-				}
+				assertBytes(t, dataPool[0], dst)
 			}
 			wg.Done()
 		}()
