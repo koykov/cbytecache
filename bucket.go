@@ -55,13 +55,17 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo, force bool) (err err
 func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 	// Look for existing entry to reset or update it.
 	var (
-		e   *entry
-		pl  uint32
-		err error
+		e    *entry
+		pl   uint32
+		idx  uint32
+		idxl bool
+		ok   bool
+		err  error
 	)
-	if idx, ok := b.index[h]; ok {
+	if idx, ok = b.index[h]; ok {
 		if idx < b.elen() {
 			e = &b.entry[idx]
+			idxl = idx == b.elen()-1
 		}
 	}
 
@@ -93,10 +97,14 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 				return ErrEntryCollision
 			}
 		}
-		if e.expire >= b.now() && !force {
+		if e.expire >= b.now() && !force && !idxl {
 			return ErrEntryExists
 		}
 		e.hash = 0
+	}
+
+	if idxl {
+		// todo update existing entry at the end of the bucket instead of create new one.
 	}
 
 	if b.arenaOffset >= b.alen() {
@@ -121,7 +129,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 		arena.bytesCopy(arena.offset, p)
 		arena.offset += rest
 	} else {
-		// todo test me.
 	loop:
 		arena.bytesCopy(arena.offset, p[:arenaRest])
 		p = p[arenaRest:]
@@ -201,7 +208,6 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 	if entry.offset+entry.length < ArenaSize {
 		dst = append(dst, arena.bytesRange(arenaOffset, entry.length)...)
 	} else {
-		// todo test me.
 		rest := entry.length
 	loop:
 		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
