@@ -126,6 +126,9 @@ func (c *CByteCache) FSetMarshallerTo(key string, m MarshallerTo) error {
 }
 
 func (c *CByteCache) set(key string, data []byte, force bool) error {
+	if len(key) > MaxKeySize {
+		return ErrKeyTooBig
+	}
 	if err := c.checkCache(); err != nil {
 		return err
 	}
@@ -142,6 +145,9 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 }
 
 func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
+	if len(key) > MaxKeySize {
+		return ErrKeyTooBig
+	}
 	if err := c.checkCache(); err != nil {
 		return err
 	}

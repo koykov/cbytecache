@@ -7,10 +7,13 @@ import (
 
 const (
 	MaxBucketSize = math.MaxUint32
+	MaxKeySize    = math.MaxUint16
 
 	MinExpireInterval = time.Second
 
 	ArenaSize = uint32(16 * Megabyte)
+
+	keySizeBytes = 2
 
 	cacheStatusNil    = 0
 	cacheStatusActive = 1

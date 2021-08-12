@@ -53,7 +53,7 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo, force bool) (err err
 }
 
 func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
-	// Look for existing entry to reset it.
+	// Look for existing entry to reset or update it.
 	var (
 		e   *entry
 		pl  uint32
@@ -79,10 +79,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 			if dst, err = b.getLF(dst[:0], e, &DummyMetrics{}); err != nil {
 				return err
 			}
-			if len(dst) < 4 {
+			if len(dst) < keySizeBytes {
 				return ErrEntryCorrupt
 			}
-			kl := binary.LittleEndian.Uint32(dst[:4])
+			kl := binary.LittleEndian.Uint32(dst[:keySizeBytes])
 			dst = dst[4:]
 			if kl >= uint32(len(dst)) {
 				return ErrEntryCorrupt
@@ -229,11 +229,11 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	}
 	var err error
 	bl := b.buf.Len()
-	if err = b.buf.GrowDelta(4); err != nil {
+	if err = b.buf.GrowDelta(keySizeBytes); err != nil {
 		return p, pl, err
 	}
-	kl := uint32(len(key))
-	binary.LittleEndian.PutUint32(b.buf.Bytes(), kl)
+	kl := uint16(len(key))
+	binary.LittleEndian.PutUint16(b.buf.Bytes(), kl)
 	if _, err = b.buf.WriteString(key); err != nil {
 		return p, pl, err
 	}
