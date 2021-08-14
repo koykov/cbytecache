@@ -185,6 +185,7 @@ func (c *CByteCache) Release() error {
 }
 
 func (c *CByteCache) Close() error {
+	atomic.StoreUint32(&c.status, cacheStatusClosed)
 	if err := c.Release(); err != nil {
 		return err
 	}
