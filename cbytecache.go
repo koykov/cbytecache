@@ -129,7 +129,7 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
-	if err := c.checkCache(); err != nil {
+	if err := c.checkCache(cacheStatusActive); err != nil {
 		return err
 	}
 	dl := uint32(len(data))
@@ -148,7 +148,7 @@ func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
-	if err := c.checkCache(); err != nil {
+	if err := c.checkCache(cacheStatusActive); err != nil {
 		return err
 	}
 	ml := uint32(m.Size())
@@ -168,7 +168,7 @@ func (c *CByteCache) Get(key string) ([]byte, error) {
 }
 
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
-	if err := c.checkCache(); err != nil {
+	if err := c.checkCache(cacheStatusActive); err != nil {
 		return dst, err
 	}
 	h := c.config.HashFn(key)
@@ -181,7 +181,7 @@ func (c *CByteCache) Reset() error {
 }
 
 func (c *CByteCache) Release() error {
-	return c.bulkExec(releaseWorkers, "release", func(b *bucket) error { return b.release() })
+	return c.bulkExecWS(releaseWorkers, "release", func(b *bucket) error { return b.release() }, cacheStatusActive|cacheStatusClosed)
 }
 
 func (c *CByteCache) Close() error {
@@ -206,7 +206,11 @@ func (c *CByteCache) evict() error {
 }
 
 func (c *CByteCache) bulkExec(workers int, op string, fn func(*bucket) error) error {
-	if err := c.checkCache(); err != nil {
+	return c.bulkExecWS(workers, op, fn, cacheStatusActive)
+}
+
+func (c *CByteCache) bulkExecWS(workers int, op string, fn func(*bucket) error, allow uint32) error {
+	if err := c.checkCache(allow); err != nil {
 		return err
 	}
 	count := min(uint32(workers), uint32(c.config.Buckets))
@@ -244,8 +248,8 @@ func (c *CByteCache) bulkExec(workers int, op string, fn func(*bucket) error) er
 	return ErrOK
 }
 
-func (c *CByteCache) checkCache() error {
-	if status := atomic.LoadUint32(&c.status); status != cacheStatusActive {
+func (c *CByteCache) checkCache(allow uint32) error {
+	if status := atomic.LoadUint32(&c.status); status&allow == 0 {
 		if status == cacheStatusNil {
 			return ErrBadCache
 		}
