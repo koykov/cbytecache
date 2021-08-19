@@ -39,6 +39,9 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
 			config.Buckets, config.MaxSize, MaxBucketSize)
 	}
+	if bucketSize > 0 && bucketSize < uint64(ArenaSize) {
+		return nil, fmt.Errorf("bucket size must be greater than arena size %d", ArenaSize)
+	}
 	if config.Expire > 0 && config.Expire < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
