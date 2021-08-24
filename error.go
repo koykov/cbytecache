@@ -11,7 +11,7 @@ var (
 	ErrBadConfig      = errors.New("config is empty")
 	ErrBadCache       = errors.New("cache uninitialized, use NewCByteCache()")
 	ErrCacheClosed    = errors.New("cache closed")
-	ErrBadHashFn      = errors.New("you must provide hash function")
+	ErrBadHasher      = errors.New("you must provide hasher helper")
 	ErrBadBuckets     = errors.New("buckets count must be power of two and great than zero")
 	ErrKeyTooBig      = fmt.Errorf("key overflows maximum %d", MaxKeySize)
 	ErrNotFound       = errors.New("entry not found")

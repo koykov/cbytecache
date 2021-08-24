@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/koykov/fastconv"
+	"github.com/koykov/hash/fnv"
 )
 
 func TestCacheIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
-		conf := DefaultConfig(time.Minute, fastconv.Fnv64aString)
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		cache, err := NewCByteCache(conf)
 		if err != nil {
 			t.Fatal(err)

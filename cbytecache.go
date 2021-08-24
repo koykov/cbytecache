@@ -28,8 +28,8 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	}
 	config = config.Copy()
 
-	if config.HashFn == nil {
-		return nil, ErrBadHashFn
+	if config.Hasher == nil {
+		return nil, ErrBadHasher
 	}
 	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
@@ -142,7 +142,7 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 	if c.maxEntrySize > 0 && dl > c.maxEntrySize {
 		return ErrEntryTooBig
 	}
-	h := c.config.HashFn(key)
+	h := c.config.Hasher.Sum64(key)
 	bucket := c.buckets[h&c.mask]
 	return bucket.set(key, h, data, force)
 }
@@ -161,7 +161,7 @@ func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
 	if ml > c.maxEntrySize {
 		return ErrEntryTooBig
 	}
-	h := c.config.HashFn(key)
+	h := c.config.Hasher.Sum64(key)
 	bucket := c.buckets[h&c.mask]
 	return bucket.setm(key, h, m, force)
 }
@@ -174,7 +174,7 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	if err := c.checkCache(cacheStatusActive); err != nil {
 		return dst, err
 	}
-	h := c.config.HashFn(key)
+	h := c.config.Hasher.Sum64(key)
 	bucket := c.buckets[h&c.mask]
 	return bucket.get(dst, h)
 }
