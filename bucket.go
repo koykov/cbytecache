@@ -12,6 +12,7 @@ import (
 
 type bucket struct {
 	config  *Config
+	idx     uint32
 	status  uint32
 	maxSize uint32
 	nowPtr  *uint32
@@ -351,6 +352,12 @@ func (b *bucket) recycleArena(arenaID uint32) {
 				break
 			}
 		}
+		for i := al8; i < al; i++ {
+			if b.arena[i].id == arenaID {
+				arenaIdx = i
+				break
+			}
+		}
 	}
 	if arenaIdx == 0 {
 		return
@@ -358,7 +365,8 @@ func (b *bucket) recycleArena(arenaID uint32) {
 
 	b.arenaBuf = append(b.arenaBuf[:0], b.arena[:arenaIdx]...)
 	copy(b.arena, b.arena[arenaIdx:])
-	b.arena = append(b.arena[:al-arenaIdx], b.arenaBuf...)
+	b.arenaOffset = uint32(al - arenaIdx)
+	b.arena = append(b.arena[:b.arenaOffset], b.arenaBuf...)
 	b.m().Free(uint32(len(b.arenaBuf)) * ArenaSize)
 
 	_ = b.arena[al-1]

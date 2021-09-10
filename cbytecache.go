@@ -70,6 +70,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	for i := range c.buckets {
 		c.buckets[i] = &bucket{
 			config:  config,
+			idx:     uint32(i),
 			maxSize: uint32(bucketSize),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
