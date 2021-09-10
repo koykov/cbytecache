@@ -257,9 +257,12 @@ func (b *bucket) bulkEvict() error {
 		return err
 	}
 
+	b.l().Printf("bucket #%d: bulk evict started", b.idx)
+
 	b.mux.Lock()
 	b.status = bucketStatusService
 	defer func() {
+		b.l().Printf("bucket #%d: bulk evict finished", b.idx)
 		b.status = bucketStatusActive
 		b.mux.Unlock()
 	}()
@@ -499,6 +502,10 @@ func (b *bucket) elen() uint32 {
 
 func (b *bucket) m() MetricsWriter {
 	return b.config.MetricsWriter
+}
+
+func (b *bucket) l() Logger {
+	return b.config.Logger
 }
 
 func min(a, b uint32) uint32 {
