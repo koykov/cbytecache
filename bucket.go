@@ -370,7 +370,6 @@ func (b *bucket) recycleArena(arenaID uint32) {
 	copy(b.arena, b.arena[arenaIdx:])
 	b.arenaOffset = uint32(al - arenaIdx)
 	b.arena = append(b.arena[:b.arenaOffset], b.arenaBuf...)
-	b.m().Free(uint32(len(b.arenaBuf)) * ArenaSize)
 
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
