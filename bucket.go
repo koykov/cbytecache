@@ -110,6 +110,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 
 	if b.arenaOffset >= b.alen() {
 		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+			// b.l().Printf("bucket %d: no space on grow", b.idx)
 			b.m().NoSpace()
 			return ErrNoSpace
 		}
@@ -137,6 +138,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 		b.arenaOffset++
 		if b.arenaOffset >= b.alen() {
 			if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+				b.l().Printf("bucket %d: no space on write", b.idx)
+				b.m().NoSpace()
 				return ErrNoSpace
 			}
 		alloc2:
@@ -295,7 +298,10 @@ func (b *bucket) bulkEvict() error {
 
 	wg.Add(1)
 	go func() {
+		bal, bao := b.alen(), b.arenaOffset
 		b.recycleArena(arenaID)
+		aal, aao := b.alen(), b.arenaOffset
+		b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
 		wg.Done()
 	}()
 
