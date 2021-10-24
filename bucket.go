@@ -53,22 +53,13 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo, force bool) (err err
 	return
 }
 
-func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
+func (b *bucket) setLF(key string, h uint64, p []byte, _ bool) error {
 	// Look for existing entry to reset or update it.
 	var (
-		e    *entry
-		pl   uint32
-		idx  uint32
-		idxl bool
-		ok   bool
-		err  error
+		e   *entry
+		pl  uint32
+		err error
 	)
-	if idx, ok = b.index[h]; ok {
-		if idx < b.elen() {
-			e = &b.entry[idx]
-			idxl = idx == b.elen()-1
-		}
-	}
 
 	if p, pl, err = b.c7n(key, p); err != nil {
 		return err
@@ -98,14 +89,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, force bool) error {
 				return ErrEntryCollision
 			}
 		}
-		if e.expire >= b.now() && !force && !idxl {
-			return ErrEntryExists
-		}
 		e.hash = 0
-	}
-
-	if idxl {
-		// todo update existing entry at the end of the bucket instead of create new one.
 	}
 
 	if b.arenaOffset >= b.alen() {
