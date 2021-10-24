@@ -114,22 +114,14 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 }
 
 func (c *CByteCache) Set(key string, data []byte) error {
-	return c.set(key, data, c.config.ForceSet)
+	return c.set(key, data)
 }
 
 func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
-	return c.setm(key, m, c.config.ForceSet)
+	return c.setm(key, m)
 }
 
-func (c *CByteCache) FSet(key string, data []byte) error {
-	return c.set(key, data, true)
-}
-
-func (c *CByteCache) FSetMarshallerTo(key string, m MarshallerTo) error {
-	return c.setm(key, m, true)
-}
-
-func (c *CByteCache) set(key string, data []byte, force bool) error {
+func (c *CByteCache) set(key string, data []byte) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
@@ -145,10 +137,10 @@ func (c *CByteCache) set(key string, data []byte, force bool) error {
 	}
 	h := c.config.Hasher.Sum64(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.set(key, h, data, force)
+	return bucket.set(key, h, data)
 }
 
-func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
+func (c *CByteCache) setm(key string, m MarshallerTo) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
@@ -164,7 +156,7 @@ func (c *CByteCache) setm(key string, m MarshallerTo, force bool) error {
 	}
 	h := c.config.Hasher.Sum64(key)
 	bucket := c.buckets[h&c.mask]
-	return bucket.setm(key, h, m, force)
+	return bucket.setm(key, h, m)
 }
 
 func (c *CByteCache) Get(key string) ([]byte, error) {

@@ -11,7 +11,6 @@ type Config struct {
 	Buckets        uint
 	Expire         time.Duration
 	Vacuum         time.Duration
-	ForceSet       bool
 	CollisionCheck bool
 	MaxSize        MemorySize
 
