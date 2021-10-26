@@ -246,12 +246,12 @@ func (b *bucket) bulkEvict() error {
 
 	b.l().Printf("bucket #%d: bulk evict started", b.idx)
 
+	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
-	b.status = bucketStatusService
 	defer func() {
 		b.l().Printf("bucket #%d: bulk evict finished", b.idx)
-		b.status = bucketStatusActive
 		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
 	el := b.elen()
@@ -406,11 +406,11 @@ func (b *bucket) reset() error {
 		return err
 	}
 
+	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
-	b.status = bucketStatusService
 	defer func() {
-		b.status = bucketStatusActive
 		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
 	b.buf.ResetLen()
@@ -426,11 +426,11 @@ func (b *bucket) release() error {
 		return err
 	}
 
+	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
-	b.status = bucketStatusService
 	defer func() {
-		b.status = bucketStatusActive
 		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
 	b.buf.Release()
