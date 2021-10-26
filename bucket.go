@@ -53,43 +53,55 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo) (err error) {
 	return
 }
 
-func (b *bucket) setLF(key string, h uint64, p []byte) error {
-	// Look for existing entry to reset or update it.
+func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	var (
-		e   *entry
-		pl  uint32
-		err error
+		idx, pl uint32
+
+		e  *entry
+		ok bool
 	)
 
+	defer b.buf.ResetLen()
+
+	if idx, ok = b.index[h]; ok {
+		if idx < b.elen() {
+			e = &b.entry[idx]
+		}
+	}
+
 	if p, pl, err = b.c7n(key, p); err != nil {
-		return err
+		return
 	}
 
 	if e != nil {
 		if b.config.CollisionCheck {
 			bl := b.buf.Len()
 			if err = b.buf.GrowDelta(int(e.length)); err != nil {
-				return err
+				return
 			}
 			dst := b.buf.Bytes()[bl:]
 			if dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
-				return err
+				return
 			}
 			if len(dst) < keySizeBytes {
-				return ErrEntryCorrupt
+				err = ErrEntryCorrupt
+				return
 			}
-			kl := binary.LittleEndian.Uint32(dst[:keySizeBytes])
+			kl := binary.LittleEndian.Uint16(dst[:keySizeBytes])
 			dst = dst[keySizeBytes:]
-			if kl >= uint32(len(dst)) {
-				return ErrEntryCorrupt
+			if kl >= uint16(len(dst)) {
+				err = ErrEntryCorrupt
+				return
 			}
 			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
 				b.m().Collision()
-				return ErrEntryCollision
+				err = ErrEntryCollision
+				return
 			}
 		}
-		e.hash = 0
+		err = ErrEntryExists
+		return
 	}
 
 	if b.arenaOffset >= b.alen() {
@@ -223,11 +235,11 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	}
 	var err error
 	bl := b.buf.Len()
-	if err = b.buf.GrowDelta(keySizeBytes); err != nil {
+	if err = b.buf.GrowLen(bl + keySizeBytes); err != nil {
 		return p, pl, err
 	}
 	kl := uint16(len(key))
-	binary.LittleEndian.PutUint16(b.buf.Bytes(), kl)
+	binary.LittleEndian.PutUint16(b.buf.Bytes()[bl:], kl)
 	if _, err = b.buf.WriteString(key); err != nil {
 		return p, pl, err
 	}
