@@ -79,7 +79,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) error {
 				return ErrEntryCorrupt
 			}
 			kl := binary.LittleEndian.Uint32(dst[:keySizeBytes])
-			dst = dst[4:]
+			dst = dst[keySizeBytes:]
 			if kl >= uint32(len(dst)) {
 				return ErrEntryCorrupt
 			}
