@@ -72,7 +72,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) error {
 				return err
 			}
 			dst := b.buf.Bytes()[bl:]
-			if dst, err = b.getLF(dst[:0], e, &DummyMetrics{}); err != nil {
+			if dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
 				return err
 			}
 			if len(dst) < keySizeBytes {

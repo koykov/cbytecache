@@ -54,7 +54,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	}
 
 	if config.Logger == nil {
-		config.Logger = &DummyLog{}
+		config.Logger = dummyLog
 	}
 
 	now := uint32(time.Now().Unix())
