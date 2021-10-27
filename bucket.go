@@ -95,6 +95,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
+				b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
 				b.m().Collision()
 				err = ErrEntryCollision
 				return
