@@ -5,9 +5,9 @@ type entry struct {
 	offset uint32
 	length uint32
 	expire uint32 // overflows at 2106-02-07 06:28:15
-	aidptr *uint32
+	aidptr uintptr
 }
 
 func (e entry) arenaID() uint32 {
-	return *e.aidptr
+	return indirectArenaID(e.aidptr)
 }

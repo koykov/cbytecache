@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/koykov/cbytebuf"
 	"github.com/koykov/fastconv"
@@ -120,7 +121,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 		}
 	}
 	arena := &b.arena[b.arenaOffset]
-	arenaID := &arena.id
+	arenaID := uintptr(unsafe.Pointer(&arena.id))
 	arenaOffset := arena.offset
 	arenaRest := ArenaSize - arena.offset
 	rest := uint32(len(p))
