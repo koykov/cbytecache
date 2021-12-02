@@ -15,11 +15,10 @@ type CByteCache struct {
 	status  uint32
 	buckets []*bucket
 	mask    uint64
-	nowPtr  *uint32
 
 	maxEntrySize uint32
 
-	cancelFnClock, cancelFnExpire, cancelFnVacuum context.CancelFunc
+	cancelFnExpire, cancelFnVacuum context.CancelFunc
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -57,12 +56,14 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		config.Logger = dummyLog
 	}
 
-	now := uint32(time.Now().Unix())
+	if config.Clock == nil {
+		config.Clock = nativeClock{}
+	}
+
 	c := &CByteCache{
 		config: config,
 		status: cacheStatusActive,
 		mask:   uint64(config.Buckets - 1),
-		nowPtr: &now,
 
 		maxEntrySize: uint32(bucketSize),
 	}
@@ -74,24 +75,8 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 			maxSize: uint32(bucketSize),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
-			nowPtr:  c.nowPtr,
 		}
 	}
-
-	var ctxClock context.Context
-	ctxClock, c.cancelFnClock = context.WithCancel(context.Background())
-	tickerNow := time.NewTicker(time.Second)
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-tickerNow.C:
-				atomic.StoreUint32(c.nowPtr, uint32(time.Now().Unix()))
-			case <-ctx.Done():
-				tickerNow.Stop()
-				return
-			}
-		}
-	}(ctxClock)
 
 	if config.Expire > 0 {
 		var ctxExpire context.Context
@@ -192,9 +177,6 @@ func (c *CByteCache) Close() error {
 	}
 	if c.cancelFnExpire != nil {
 		c.cancelFnExpire()
-	}
-	if c.cancelFnClock != nil {
-		c.cancelFnClock()
 	}
 	return ErrOK
 }

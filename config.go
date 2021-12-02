@@ -13,6 +13,7 @@ type Config struct {
 	Vacuum         time.Duration
 	CollisionCheck bool
 	MaxSize        MemorySize
+	Clock          Clock
 
 	MetricsWriter MetricsWriter
 	Logger        Logger

@@ -16,7 +16,6 @@ type bucket struct {
 	idx     uint32
 	status  uint32
 	maxSize uint32
-	nowPtr  *uint32
 
 	mux   sync.RWMutex
 	buf   *cbytebuf.CByteBuf
@@ -492,7 +491,7 @@ func (b *bucket) checkStatus() error {
 }
 
 func (b *bucket) now() uint32 {
-	return atomic.LoadUint32(b.nowPtr)
+	return uint32(b.config.Clock.Now().Unix())
 }
 
 func (b *bucket) alen() uint32 {
