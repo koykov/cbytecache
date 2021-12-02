@@ -87,6 +87,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 			case <-tickerNow.C:
 				atomic.StoreUint32(c.nowPtr, uint32(time.Now().Unix()))
 			case <-ctx.Done():
+				tickerNow.Stop()
 				return
 			}
 		}
@@ -104,6 +105,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 						c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
 					}
 				case <-ctx.Done():
+					tickerExpire.Stop()
 					return
 				}
 			}
