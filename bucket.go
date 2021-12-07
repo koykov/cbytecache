@@ -414,6 +414,11 @@ func (b *bucket) evict(e *entry) {
 	delete(b.index, e.hash)
 }
 
+func (b *bucket) vacuum() error {
+	// todo implement me
+	return nil
+}
+
 func (b *bucket) reset() error {
 	if err := b.checkStatus(); err != nil {
 		return err

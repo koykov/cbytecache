@@ -1,11 +1,9 @@
 package cbytecache
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/koykov/cbytebuf"
 )
@@ -18,7 +16,7 @@ type CByteCache struct {
 
 	maxEntrySize uint32
 
-	cancelFnExpire, cancelFnVacuum context.CancelFunc
+	// cancelFnExpire, cancelFnVacuum context.CancelFunc
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -57,7 +55,10 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	}
 
 	if config.Clock == nil {
-		config.Clock = nativeClock{}
+		config.Clock = &NativeClock{}
+	}
+	if !config.Clock.Active() {
+		config.Clock.Start()
 	}
 
 	c := &CByteCache{
@@ -79,22 +80,34 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	}
 
 	if config.Expire > 0 {
-		var ctxExpire context.Context
-		ctxExpire, c.cancelFnExpire = context.WithCancel(context.Background())
-		tickerExpire := time.NewTicker(config.Expire)
-		go func(ctx context.Context) {
-			for {
-				select {
-				case <-tickerExpire.C:
-					if err := c.evict(); err != nil && c.config.Logger != nil {
-						c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
-					}
-				case <-ctx.Done():
-					tickerExpire.Stop()
-					return
-				}
+		config.Clock.Schedule(config.Expire, func() {
+			if err := c.evict(); err != nil && c.config.Logger != nil {
+				c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
 			}
-		}(ctxExpire)
+		})
+		// var ctxExpire context.Context
+		// ctxExpire, c.cancelFnExpire = context.WithCancel(context.Background())
+		// tickerExpire := time.NewTicker(config.Expire)
+		// go func(ctx context.Context) {
+		// 	for {
+		// 		select {
+		// 		case <-tickerExpire.C:
+		// 			if err := c.evict(); err != nil && c.config.Logger != nil {
+		// 				c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
+		// 			}
+		// 		case <-ctx.Done():
+		// 			tickerExpire.Stop()
+		// 			return
+		// 		}
+		// 	}
+		// }(ctxExpire)
+	}
+	if config.Vacuum > 0 {
+		config.Clock.Schedule(config.Vacuum, func() {
+			if err := c.vacuum(); err != nil && c.config.Logger != nil {
+				c.config.Logger.Printf("vacuum failed with error %s\n", err.Error())
+			}
+		})
 	}
 
 	return c, ErrOK
@@ -172,17 +185,22 @@ func (c *CByteCache) Close() error {
 	if err := c.Release(); err != nil {
 		return err
 	}
-	if c.cancelFnVacuum != nil {
-		c.cancelFnVacuum()
-	}
-	if c.cancelFnExpire != nil {
-		c.cancelFnExpire()
-	}
+	// if c.cancelFnVacuum != nil {
+	// 	c.cancelFnVacuum()
+	// }
+	// if c.cancelFnExpire != nil {
+	// 	c.cancelFnExpire()
+	// }
+	c.config.Clock.Stop()
 	return ErrOK
 }
 
 func (c *CByteCache) evict() error {
 	return c.bulkExec(evictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
+}
+
+func (c *CByteCache) vacuum() error {
+	return c.bulkExec(evictWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
 }
 
 func (c *CByteCache) bulkExec(workers int, op string, fn func(*bucket) error) error {
