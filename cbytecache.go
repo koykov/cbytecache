@@ -15,8 +15,6 @@ type CByteCache struct {
 	mask    uint64
 
 	maxEntrySize uint32
-
-	// cancelFnExpire, cancelFnVacuum context.CancelFunc
 }
 
 func NewCByteCache(config *Config) (*CByteCache, error) {
@@ -85,22 +83,6 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 				c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
 			}
 		})
-		// var ctxExpire context.Context
-		// ctxExpire, c.cancelFnExpire = context.WithCancel(context.Background())
-		// tickerExpire := time.NewTicker(config.Expire)
-		// go func(ctx context.Context) {
-		// 	for {
-		// 		select {
-		// 		case <-tickerExpire.C:
-		// 			if err := c.evict(); err != nil && c.config.Logger != nil {
-		// 				c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
-		// 			}
-		// 		case <-ctx.Done():
-		// 			tickerExpire.Stop()
-		// 			return
-		// 		}
-		// 	}
-		// }(ctxExpire)
 	}
 	if config.Vacuum > 0 {
 		config.Clock.Schedule(config.Vacuum, func() {
@@ -185,12 +167,6 @@ func (c *CByteCache) Close() error {
 	if err := c.Release(); err != nil {
 		return err
 	}
-	// if c.cancelFnVacuum != nil {
-	// 	c.cancelFnVacuum()
-	// }
-	// if c.cancelFnExpire != nil {
-	// 	c.cancelFnExpire()
-	// }
 	c.config.Clock.Stop()
 	return ErrOK
 }
