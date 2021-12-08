@@ -67,24 +67,84 @@ func TestCacheIO(t *testing.T) {
 }
 
 func TestCByteCacheExpire(t *testing.T) {
-	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
-	conf.Clock = clock.NewClock()
-	cache, err := NewCByteCache(conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = cache.Set("foo", getEntryBody(0)); err != nil {
-		t.Fatal(err)
-	}
-	conf.Clock.Jump(time.Minute)
-	time.Sleep(time.Millisecond * 5)
-	if _, err = cache.Get("foo"); err == nil {
-		err = errors.New(`entry got from the cache but expects "not found" error`)
-	}
-	if err != ErrNotFound {
-		t.Errorf("get expired entry failed with error: %s", err.Error())
-	}
-	if err = cache.Close(); err != nil {
-		t.Error(err.Error())
-	}
+	t.Run("single", func(t *testing.T) {
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf.Clock = clock.NewClock()
+		cache, err := NewCByteCache(conf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = cache.Set("foo", getEntryBody(0)); err != nil {
+			t.Fatal(err)
+		}
+		// Wait for expiration.
+		conf.Clock.Jump(time.Minute)
+		time.Sleep(time.Millisecond * 5)
+		if _, err = cache.Get("foo"); err == nil {
+			err = errors.New(`entry got from the cache but expects "not found" error`)
+		}
+		if err != ErrNotFound {
+			t.Errorf("get expired entry failed with error: %s", err.Error())
+		}
+		if err = cache.Close(); err != nil {
+			t.Error(err.Error())
+		}
+	})
+	t.Run("multi", func(t *testing.T) {
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf.Clock = clock.NewClock()
+		conf.Vacuum = time.Minute * 2
+		cache, err := NewCByteCache(conf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var key []byte
+		for i := 0; i < 1e5; i++ {
+			key = makeKey(key, i)
+			if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
+				t.Error(err)
+			}
+		}
+		t.Log(cache.Size())
+		// Wait for expiration.
+		conf.Clock.Jump(time.Minute)
+		time.Sleep(time.Millisecond * 5)
+		t.Log(cache.Size())
+		// todo check size
+	})
 }
+
+// func TestCByteCacheVacuum(t *testing.T) {
+// 	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+// 	conf.Clock = clock.NewClock()
+// 	conf.Vacuum = time.Minute * 2
+// 	cache, err := NewCByteCache(conf)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	var key []byte
+// 	for i := 0; i < 1e5; i++ {
+// 		key = makeKey(key, i)
+// 		if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
+// 			t.Error(err)
+// 		}
+// 	}
+// 	t.Log(cache.Size())
+// 	// Wait for expiration.
+// 	conf.Clock.Jump(time.Minute)
+// 	time.Sleep(time.Millisecond * 5)
+// 	t.Log(cache.Size())
+// 	// Wait for vacuum.
+// 	conf.Clock.Jump(time.Minute)
+// 	time.Sleep(time.Millisecond * 5)
+// 	t.Log(cache.Size())
+// 	if _, err = cache.Get("foo"); err == nil {
+// 		err = errors.New(`entry got from the cache but expects "not found" error`)
+// 	}
+// 	if err != ErrNotFound {
+// 		t.Errorf("get expired entry failed with error: %s", err.Error())
+// 	}
+// 	if err = cache.Close(); err != nil {
+// 		t.Error(err.Error())
+// 	}
+// }

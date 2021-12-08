@@ -154,6 +154,14 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	return bucket.get(dst, h)
 }
 
+func (c *CByteCache) Size() (r uint64) {
+	_ = c.buckets[len(c.buckets)-1]
+	for i := 0; i < len(c.buckets); i++ {
+		r += uint64(c.buckets[i].size())
+	}
+	return
+}
+
 func (c *CByteCache) Reset() error {
 	return c.bulkExec(resetWorkers, "reset", func(b *bucket) error { return b.reset() })
 }

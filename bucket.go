@@ -2,6 +2,7 @@ package cbytecache
 
 import (
 	"encoding/binary"
+	"math"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,7 @@ type bucket struct {
 	idx     uint32
 	status  uint32
 	maxSize uint32
+	actSize uint32
 
 	mux   sync.RWMutex
 	buf   *cbytebuf.CByteBuf
@@ -163,6 +165,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	})
 	b.index[h] = b.elen() - 1
 
+	atomic.AddUint32(&b.actSize, pl)
 	b.m().Set(pl)
 	return ErrOK
 }
@@ -250,6 +253,10 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	p = b.buf.Bytes()[bl:]
 	pl = uint32(len(p))
 	return p, pl, err
+}
+
+func (b *bucket) size() uint32 {
+	return atomic.LoadUint32(&b.actSize)
 }
 
 func (b *bucket) bulkEvict() error {
@@ -410,6 +417,7 @@ func (b *bucket) evictRange(z int) {
 }
 
 func (b *bucket) evict(e *entry) {
+	atomic.AddUint32(&b.actSize, math.MaxUint32-e.length+1)
 	b.m().Evict(e.length)
 	delete(b.index, e.hash)
 }
