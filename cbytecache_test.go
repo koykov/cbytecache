@@ -1,9 +1,11 @@
 package cbytecache
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/koykov/clock"
 	"github.com/koykov/fastconv"
 	"github.com/koykov/hash/fnv"
 )
@@ -62,4 +64,27 @@ func TestCacheIO(t *testing.T) {
 	t.Run("10K", func(t *testing.T) { testIO(t, 10000, verbose) })
 	t.Run("100K", func(t *testing.T) { testIO(t, 100000, verbose) })
 	t.Run("1M", func(t *testing.T) { testIO(t, 1000000, verbose) })
+}
+
+func TestCByteCacheExpire(t *testing.T) {
+	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+	conf.Clock = clock.NewClock()
+	cache, err := NewCByteCache(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = cache.Set("foo", getEntryBody(0)); err != nil {
+		t.Fatal(err)
+	}
+	conf.Clock.Jump(time.Minute)
+	time.Sleep(time.Millisecond * 5)
+	if _, err = cache.Get("foo"); err == nil {
+		err = errors.New(`entry got from the cache but expects "not found" error`)
+	}
+	if err != ErrNotFound {
+		t.Errorf("get expired entry failed with error: %s", err.Error())
+	}
+	if err = cache.Close(); err != nil {
+		t.Error(err.Error())
+	}
 }
