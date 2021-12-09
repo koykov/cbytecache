@@ -282,7 +282,7 @@ func (b *bucket) bulkEvict() error {
 	entry := b.entry
 	now := b.now()
 	_ = entry[el-1]
-	z := sort.Search(int(el-1), func(i int) bool {
+	z := sort.Search(int(el), func(i int) bool {
 		return now <= entry[i].expire
 	})
 
@@ -290,7 +290,7 @@ func (b *bucket) bulkEvict() error {
 		return ErrOK
 	}
 
-	arenaID := b.entry[z].arenaID()
+	arenaID := b.entry[z-1].arenaID()
 
 	var wg sync.WaitGroup
 
