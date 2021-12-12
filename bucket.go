@@ -124,17 +124,18 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 	arena := &b.arena[b.arenaOffset]
 	arenaID := uintptr(unsafe.Pointer(&arena.id))
-	arenaOffset := arena.offset
-	arenaRest := ArenaSize - arena.offset
+	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
-		arena.bytesCopy(arena.offset, p)
-		arena.offset += rest
+		arena.write(p)
 	} else {
-		for rest > 0 {
-			arena.bytesCopy(arena.offset, p[:arenaRest])
-			p = p[arenaRest:]
-			rest -= arenaRest
+		mustWrite := arenaRest
+		for {
+			arena.write(p[:mustWrite])
+			p = p[mustWrite:]
+			if rest -= mustWrite; rest == 0 {
+				break
+			}
 			b.arenaOffset++
 			if b.arenaOffset >= b.alen() {
 				if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
@@ -152,7 +153,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				}
 			}
 			arena = &b.arena[b.arenaOffset]
-			arenaRest = min(rest, ArenaSize)
+			mustWrite = min(rest, ArenaSize)
 		}
 	}
 
@@ -210,11 +211,11 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 
 	arenaRest := ArenaSize - arenaOffset
 	if entry.offset+entry.length < ArenaSize {
-		dst = append(dst, arena.bytesRange(arenaOffset, entry.length)...)
+		dst = append(dst, arena.read(arenaOffset, entry.length)...)
 	} else {
 		rest := entry.length
 	loop:
-		dst = append(dst, arena.bytesRange(arenaOffset, arenaRest)...)
+		dst = append(dst, arena.read(arenaOffset, arenaRest)...)
 		rest -= arenaRest
 		arenaID++
 		if arenaID >= b.alen() {
