@@ -131,30 +131,28 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 		arena.bytesCopy(arena.offset, p)
 		arena.offset += rest
 	} else {
-	loop:
-		arena.bytesCopy(arena.offset, p[:arenaRest])
-		p = p[arenaRest:]
-		rest -= arenaRest
-		b.arenaOffset++
-		if b.arenaOffset >= b.alen() {
-			if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
-				b.l().Printf("bucket %d: no space on write", b.idx)
-				b.m().NoSpace()
-				return ErrNoSpace
-			}
-			for {
-				b.m().Alloc(ArenaSize)
-				arena := allocArena(b.alen())
-				b.arena = append(b.arena, *arena)
-				if b.alen() > b.arenaOffset {
-					break
+		for rest > 0 {
+			arena.bytesCopy(arena.offset, p[:arenaRest])
+			p = p[arenaRest:]
+			rest -= arenaRest
+			b.arenaOffset++
+			if b.arenaOffset >= b.alen() {
+				if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+					b.l().Printf("bucket %d: no space on write", b.idx)
+					b.m().NoSpace()
+					return ErrNoSpace
+				}
+				for {
+					b.m().Alloc(ArenaSize)
+					arena := allocArena(b.alen())
+					b.arena = append(b.arena, *arena)
+					if b.alen() > b.arenaOffset {
+						break
+					}
 				}
 			}
-		}
-		arena = &b.arena[b.arenaOffset]
-		arenaRest = min(rest, ArenaSize)
-		if rest > 0 {
-			goto loop
+			arena = &b.arena[b.arenaOffset]
+			arenaRest = min(rest, ArenaSize)
 		}
 	}
 
