@@ -2,6 +2,8 @@ package cbytecache
 
 import (
 	"errors"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -92,8 +94,9 @@ func TestCByteCacheExpire(t *testing.T) {
 	})
 	t.Run("multi", func(t *testing.T) {
 		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf.Buckets = 1
 		conf.Clock = clock.NewClock()
-		conf.Vacuum = time.Minute * 2
+		conf.Logger = log.New(os.Stdout, "", log.LstdFlags)
 		cache, err := NewCByteCache(conf)
 		if err != nil {
 			t.Fatal(err)
@@ -110,6 +113,7 @@ func TestCByteCacheExpire(t *testing.T) {
 		conf.Clock.Jump(time.Minute)
 		time.Sleep(time.Millisecond * 5)
 		t.Log(cache.Size())
+		conf.Clock.Stop()
 		// todo check size
 	})
 }
