@@ -113,12 +113,13 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			b.m().NoSpace()
 			return ErrNoSpace
 		}
-	alloc1:
-		b.m().Alloc(ArenaSize)
-		arena := allocArena(b.alen())
-		b.arena = append(b.arena, *arena)
-		if b.alen() <= b.arenaOffset {
-			goto alloc1
+		for {
+			b.m().Alloc(ArenaSize)
+			arena := allocArena(b.alen())
+			b.arena = append(b.arena, *arena)
+			if b.alen() > b.arenaOffset {
+				break
+			}
 		}
 	}
 	arena := &b.arena[b.arenaOffset]
