@@ -2,8 +2,6 @@ package cbytecache
 
 import (
 	"errors"
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -93,28 +91,36 @@ func TestCByteCacheExpire(t *testing.T) {
 		}
 	})
 	t.Run("multi", func(t *testing.T) {
+		const (
+			entries    = 1e5
+			fullSize   = 25333443
+			expectSize = 0
+		)
+
 		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		conf.Buckets = 1
 		conf.Clock = clock.NewClock()
-		conf.Logger = log.New(os.Stdout, "", log.LstdFlags)
 		cache, err := NewCByteCache(conf)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var key []byte
-		for i := 0; i < 1e5; i++ {
+		for i := 0; i < entries; i++ {
 			key = makeKey(key, i)
 			if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
 				t.Error(err)
 			}
 		}
-		t.Log(cache.Size())
+		if size := cache.Size(); size != fullSize {
+			t.Error("wrong cache size after set: need", fullSize, "got", size)
+		}
 		// Wait for expiration.
 		conf.Clock.Jump(time.Minute)
 		time.Sleep(time.Millisecond * 5)
-		t.Log(cache.Size())
 		conf.Clock.Stop()
-		// todo check size
+		if size := cache.Size(); size != expectSize {
+			t.Error("wrong cache size after expire: need", expectSize, "got", size)
+		}
 	})
 }
 
