@@ -109,7 +109,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 
 	if b.arenaOffset >= b.alen() {
 		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
-			// b.l().Printf("bucket %d: no space on grow", b.idx)
+			b.l().Printf("bucket %d: no space on grow", b.idx)
 			b.m().NoSpace()
 			return ErrNoSpace
 		}
