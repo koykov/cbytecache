@@ -2,6 +2,7 @@ package cbytecache
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 
 func TestCacheIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(fmt.Sprintf("cbc%d", entries), time.Minute, &fnv.Hasher{})
 		cache, err := NewCByteCache(conf)
 		if err != nil {
 			t.Fatal(err)
@@ -68,7 +69,7 @@ func TestCacheIO(t *testing.T) {
 
 func TestCByteCacheExpire(t *testing.T) {
 	t.Run("single", func(t *testing.T) {
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
 		conf.Clock = clock.NewClock()
 		cache, err := NewCByteCache(conf)
 		if err != nil {
@@ -97,7 +98,7 @@ func TestCByteCacheExpire(t *testing.T) {
 			expectSize = 0
 		)
 
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
 		conf.Buckets = 1
 		conf.Clock = clock.NewClock()
 		cache, err := NewCByteCache(conf)

@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	Key            string
 	Hasher         hash.Hasher
 	Buckets        uint
 	Expire         time.Duration
@@ -24,8 +25,9 @@ func (c *Config) Copy() *Config {
 	return &cpy
 }
 
-func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
+func DefaultConfig(key string, expire time.Duration, hasher hash.Hasher) *Config {
 	c := Config{
+		Key:     key,
 		Hasher:  hasher,
 		Buckets: 1024,
 		Expire:  expire,
@@ -33,8 +35,8 @@ func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
 	return &c
 }
 
-func DefaultConfigWS(expire time.Duration, hasher hash.Hasher, maxSize MemorySize) *Config {
-	c := DefaultConfig(expire, hasher)
+func DefaultConfigWS(key string, expire time.Duration, hasher hash.Hasher, maxSize MemorySize) *Config {
+	c := DefaultConfig(key, expire, hasher)
 	c.MaxSize = maxSize
 	return c
 }

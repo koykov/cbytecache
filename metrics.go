@@ -1,15 +1,15 @@
 package cbytecache
 
 type MetricsWriter interface {
-	Alloc(size uint32)
-	Free(size uint32)
-	Release(size uint32)
-	Set(len uint32)
-	Evict(len uint32)
-	Miss()
-	Hit()
-	Expire()
-	Corrupt()
-	Collision()
-	NoSpace()
+	Alloc(key string, size uint32)
+	Free(key string, size uint32)
+	Release(key string, size uint32)
+	Set(key string, len uint32)
+	Evict(key string, len uint32)
+	Miss(key string)
+	Hit(key string)
+	Expire(key string)
+	Corrupt(key string)
+	Collision(key string)
+	NoSpace(key string)
 }

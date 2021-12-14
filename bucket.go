@@ -98,7 +98,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
 				b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
-				b.m().Collision()
+				b.m().Collision(b.k())
 				err = ErrEntryCollision
 				return
 			}
@@ -110,11 +110,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	if b.arenaOffset >= b.alen() {
 		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
 			b.l().Printf("bucket %d: no space on grow", b.idx)
-			b.m().NoSpace()
+			b.m().NoSpace(b.k())
 			return ErrNoSpace
 		}
 		for {
-			b.m().Alloc(ArenaSize)
+			b.m().Alloc(b.k(), ArenaSize)
 			arena := allocArena(b.alen())
 			b.arena = append(b.arena, *arena)
 			if b.alen() > b.arenaOffset {
@@ -140,11 +140,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			if b.arenaOffset >= b.alen() {
 				if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
 					b.l().Printf("bucket %d: no space on write", b.idx)
-					b.m().NoSpace()
+					b.m().NoSpace(b.k())
 					return ErrNoSpace
 				}
 				for {
-					b.m().Alloc(ArenaSize)
+					b.m().Alloc(b.k(), ArenaSize)
 					arena := allocArena(b.alen())
 					b.arena = append(b.arena, *arena)
 					if b.alen() > b.arenaOffset {
@@ -167,7 +167,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	b.index[h] = b.elen() - 1
 
 	atomic.AddUint32(&b.actSize, pl)
-	b.m().Set(pl)
+	b.m().Set(b.k(), pl)
 	return ErrOK
 }
 
@@ -183,16 +183,16 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		ok  bool
 	)
 	if idx, ok = b.index[h]; !ok {
-		b.m().Miss()
+		b.m().Miss(b.k())
 		return dst, ErrNotFound
 	}
 	if idx >= b.elen() {
-		b.m().Miss()
+		b.m().Miss(b.k())
 		return dst, ErrNotFound
 	}
 	entry := &b.entry[idx]
 	if entry.expire < b.now() {
-		b.m().Expire()
+		b.m().Expire(b.k())
 		return dst, ErrNotFound
 	}
 
@@ -204,7 +204,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
-		mw.Miss()
+		mw.Miss(b.k())
 		return dst, ErrNotFound
 	}
 	arena := &b.arena[arenaID]
@@ -219,7 +219,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 		rest -= arenaRest
 		arenaID++
 		if arenaID >= b.alen() {
-			mw.Corrupt()
+			mw.Corrupt(b.k())
 			return dst, ErrEntryCorrupt
 		}
 		arena = &b.arena[arenaID]
@@ -229,7 +229,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 			goto loop
 		}
 	}
-	mw.Hit()
+	mw.Hit(b.k())
 	return dst, ErrOK
 }
 
@@ -422,7 +422,7 @@ func (b *bucket) evictRange(z int) {
 
 func (b *bucket) evict(e *entry) {
 	atomic.AddUint32(&b.actSize, math.MaxUint32-e.length+1)
-	b.m().Evict(e.length)
+	b.m().Evict(b.k(), e.length)
 	delete(b.index, e.hash)
 }
 
@@ -517,6 +517,10 @@ func (b *bucket) alen() uint32 {
 
 func (b *bucket) elen() uint32 {
 	return uint32(len(b.entry))
+}
+
+func (b *bucket) k() string {
+	return b.config.Key
 }
 
 func (b *bucket) m() MetricsWriter {
