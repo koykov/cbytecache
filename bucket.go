@@ -427,8 +427,32 @@ func (b *bucket) evict(e *entry) {
 }
 
 func (b *bucket) vacuum() error {
-	// todo implement me
-	return nil
+	if err := b.checkStatus(); err != nil {
+		return err
+	}
+
+	b.l().Printf("bucket #%d: vacuum started", b.idx)
+
+	atomic.StoreUint32(&b.status, bucketStatusService)
+	b.mux.Lock()
+	defer func() {
+		b.l().Printf("bucket #%d: vacuum finished", b.idx)
+		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
+	}()
+
+	ad := b.alen() - b.arenaOffset
+	if ad <= 1 {
+		return ErrOK
+	}
+	pos := b.alen() - ad + 1
+	for i := pos; i < b.alen(); i++ {
+		b.arena[i].release()
+	}
+	b.arena = b.arena[:pos]
+	b.arenaBuf = b.arenaBuf[:0]
+
+	return ErrOK
 }
 
 func (b *bucket) reset() error {
@@ -504,7 +528,7 @@ func (b *bucket) checkStatus() error {
 			return ErrBucketCorrupt
 		}
 	}
-	return nil
+	return ErrOK
 }
 
 func (b *bucket) now() uint32 {
