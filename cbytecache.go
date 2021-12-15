@@ -23,6 +23,9 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	}
 	config = config.Copy()
 
+	if len(config.Key) == 0 {
+		return nil, ErrNoKey
+	}
 	if config.Hasher == nil {
 		return nil, ErrBadHasher
 	}
