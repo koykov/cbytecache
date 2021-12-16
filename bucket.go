@@ -117,6 +117,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			b.m().Alloc(b.k(), ArenaSize)
 			arena := allocArena(b.alen())
 			atomic.AddUint32(&b.sizeTotal, ArenaSize)
+			atomic.AddUint32(&b.sizeFree, ArenaSize)
 			b.arena = append(b.arena, *arena)
 			if b.alen() > b.arenaOffset {
 				break
@@ -148,6 +149,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 					b.m().Alloc(b.k(), ArenaSize)
 					arena := allocArena(b.alen())
 					atomic.AddUint32(&b.sizeTotal, ArenaSize)
+					atomic.AddUint32(&b.sizeFree, ArenaSize)
 					b.arena = append(b.arena, *arena)
 					if b.alen() > b.arenaOffset {
 						break
@@ -453,6 +455,7 @@ func (b *bucket) vacuum() error {
 	for i := pos; i < b.alen(); i++ {
 		b.arena[i].release()
 		atomic.AddUint32(&b.sizeTotal, math.MaxUint32-ArenaSize+1)
+		atomic.AddUint32(&b.sizeFree, math.MaxUint32-ArenaSize+1)
 	}
 	b.arena = b.arena[:pos]
 	b.arenaBuf = b.arenaBuf[:0]
@@ -519,6 +522,7 @@ func (b *bucket) release() error {
 		for i = 0; i < al; i++ {
 			b.arena[i].release()
 			atomic.AddUint32(&b.sizeTotal, math.MaxUint32-ArenaSize+1)
+			atomic.AddUint32(&b.sizeFree, math.MaxUint32-ArenaSize+1)
 		}
 	}()
 
