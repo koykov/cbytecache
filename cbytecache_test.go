@@ -111,20 +111,28 @@ func TestCByteCacheExpire(t *testing.T) {
 				t.Error(err)
 			}
 		}
-		if size := cache.Size(); size != fullSize {
+		if size := cache.Size(); size.Used() != fullSize {
 			t.Error("wrong cache size after set: need", fullSize, "got", size)
 		}
 		// Wait for expiration.
 		conf.Clock.Jump(time.Minute)
 		time.Sleep(time.Millisecond * 5)
 		conf.Clock.Stop()
-		if size := cache.Size(); size != expectSize {
+		if size := cache.Size(); size.Used() != expectSize {
 			t.Error("wrong cache size after expire: need", expectSize, "got", size)
 		}
 	})
 }
 
 func TestCByteCacheVacuum(t *testing.T) {
+	const (
+		entries     = 1e6
+		fullSize    = 268435456
+		fullSize1   = 16777216
+		expectSize  = 253333443
+		expectSize1 = 0
+	)
+
 	conf := DefaultConfig("cbc_vacuum", time.Minute, &fnv.Hasher{})
 	conf.Buckets = 1
 	conf.Clock = clock.NewClock()
@@ -134,7 +142,7 @@ func TestCByteCacheVacuum(t *testing.T) {
 		t.Fatal(err)
 	}
 	var key []byte
-	for i := 0; i < 1e6; i++ {
+	for i := 0; i < entries; i++ {
 		key = makeKey(key, i)
 		if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
 			t.Error(err)

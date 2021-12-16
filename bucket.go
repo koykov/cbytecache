@@ -13,11 +13,11 @@ import (
 )
 
 type bucket struct {
-	config  *Config
-	idx     uint32
-	status  uint32
-	maxSize uint32
-	actSize uint32
+	config *Config
+	idx    uint32
+	status uint32
+
+	sizeMax, sizeTotal, sizeUsed, sizeFree uint32
 
 	mux   sync.RWMutex
 	buf   *cbytebuf.CByteBuf
@@ -108,7 +108,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 
 	if b.arenaOffset >= b.alen() {
-		if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+		if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
 			b.l().Printf("bucket %d: no space on grow", b.idx)
 			b.m().NoSpace(b.k())
 			return ErrNoSpace
@@ -116,6 +116,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 		for {
 			b.m().Alloc(b.k(), ArenaSize)
 			arena := allocArena(b.alen())
+			atomic.AddUint32(&b.sizeTotal, ArenaSize)
 			b.arena = append(b.arena, *arena)
 			if b.alen() > b.arenaOffset {
 				break
@@ -138,7 +139,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 			b.arenaOffset++
 			if b.arenaOffset >= b.alen() {
-				if b.maxSize > 0 && b.alen()*ArenaSize+ArenaSize > b.maxSize {
+				if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
 					b.l().Printf("bucket %d: no space on write", b.idx)
 					b.m().NoSpace(b.k())
 					return ErrNoSpace
@@ -146,6 +147,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				for {
 					b.m().Alloc(b.k(), ArenaSize)
 					arena := allocArena(b.alen())
+					atomic.AddUint32(&b.sizeTotal, ArenaSize)
 					b.arena = append(b.arena, *arena)
 					if b.alen() > b.arenaOffset {
 						break
@@ -166,7 +168,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	})
 	b.index[h] = b.elen() - 1
 
-	atomic.AddUint32(&b.actSize, pl)
+	atomic.AddUint32(&b.sizeUsed, pl)
+	atomic.AddUint32(&b.sizeFree, math.MaxUint32-pl+1)
 	b.m().Set(b.k(), pl)
 	return ErrOK
 }
@@ -256,8 +259,8 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	return p, pl, err
 }
 
-func (b *bucket) size() uint32 {
-	return atomic.LoadUint32(&b.actSize)
+func (b *bucket) size() (uint32, uint32, uint32) {
+	return atomic.LoadUint32(&b.sizeTotal), atomic.LoadUint32(&b.sizeUsed), atomic.LoadUint32(&b.sizeFree)
 }
 
 func (b *bucket) bulkEvict() error {
@@ -421,7 +424,8 @@ func (b *bucket) evictRange(z int) {
 }
 
 func (b *bucket) evict(e *entry) {
-	atomic.AddUint32(&b.actSize, math.MaxUint32-e.length+1)
+	atomic.AddUint32(&b.sizeUsed, math.MaxUint32-e.length+1)
+	atomic.AddUint32(&b.sizeFree, e.length)
 	b.m().Evict(b.k(), e.length)
 	delete(b.index, e.hash)
 }
@@ -448,6 +452,7 @@ func (b *bucket) vacuum() error {
 	pos := b.alen() - ad + 1
 	for i := pos; i < b.alen(); i++ {
 		b.arena[i].release()
+		atomic.AddUint32(&b.sizeTotal, math.MaxUint32-ArenaSize+1)
 	}
 	b.arena = b.arena[:pos]
 	b.arenaBuf = b.arenaBuf[:0]
@@ -513,6 +518,7 @@ func (b *bucket) release() error {
 		var i uint32
 		for i = 0; i < al; i++ {
 			b.arena[i].release()
+			atomic.AddUint32(&b.sizeTotal, math.MaxUint32-ArenaSize+1)
 		}
 	}()
 

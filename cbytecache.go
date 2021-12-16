@@ -74,7 +74,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		c.buckets[i] = &bucket{
 			config:  config,
 			idx:     uint32(i),
-			maxSize: uint32(bucketSize),
+			sizeMax: uint32(bucketSize),
 			buf:     cbytebuf.NewCByteBuf(),
 			index:   make(map[uint64]uint32),
 		}
@@ -157,10 +157,13 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	return bucket.get(dst, h)
 }
 
-func (c *CByteCache) Size() (r uint64) {
+func (c *CByteCache) Size() (r CacheSize) {
 	_ = c.buckets[len(c.buckets)-1]
 	for i := 0; i < len(c.buckets); i++ {
-		r += uint64(c.buckets[i].size())
+		t, u, f := c.buckets[i].size()
+		r.t += MemorySize(t)
+		r.u += MemorySize(u)
+		r.f += MemorySize(f)
 	}
 	return
 }
