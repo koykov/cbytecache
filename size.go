@@ -1,5 +1,7 @@
 package cbytecache
 
+import "fmt"
+
 type MemorySize uint64
 
 const (
@@ -25,4 +27,12 @@ func (s CacheSize) Used() MemorySize {
 
 func (s CacheSize) Free() MemorySize {
 	return s.f
+}
+
+func (s CacheSize) Equal(x CacheSize) bool {
+	return s.t == x.t && s.u == x.u && s.f == x.f
+}
+
+func (s CacheSize) String() string {
+	return fmt.Sprintf("{total: %d, used: %d, free: %d}", s.t, s.u, s.f)
 }

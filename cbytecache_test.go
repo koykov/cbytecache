@@ -125,13 +125,7 @@ func TestCByteCacheExpire(t *testing.T) {
 }
 
 func TestCByteCacheVacuum(t *testing.T) {
-	const (
-		entries     = 1e6
-		fullSize    = 268435456
-		fullSize1   = 16777216
-		expectSize  = 253333443
-		expectSize1 = 0
-	)
+	const entries = 1e6
 
 	conf := DefaultConfig("cbc_vacuum", time.Minute, &fnv.Hasher{})
 	conf.Buckets = 1
@@ -148,14 +142,14 @@ func TestCByteCacheVacuum(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	t.Log(cache.Size())
+	assertSize(t, cache.Size(), CacheSize{268435456, 253333443, 15102013})
 	// Wait for expiration.
 	conf.Clock.Jump(time.Minute)
 	time.Sleep(time.Millisecond * 5)
-	t.Log(cache.Size())
+	assertSize(t, cache.Size(), CacheSize{268435456, 0, 268435456})
 	// Wait for vacuum.
 	conf.Clock.Jump(time.Minute)
 	time.Sleep(time.Millisecond * 5)
-	t.Log(cache.Size())
+	assertSize(t, cache.Size(), CacheSize{16777216, 0, 16777216})
 	conf.Clock.Stop()
 }

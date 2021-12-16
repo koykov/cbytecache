@@ -18,6 +18,12 @@ var (
 	dpLen = len(dataPool)
 )
 
+func makeKey(dst []byte, i int) []byte {
+	dst = append(dst[:0], "key"...)
+	dst = strconv.AppendInt(dst, int64(i), 10)
+	return dst
+}
+
 func getEntryBody(i int) []byte {
 	return dataPool[i%dpLen]
 }
@@ -29,8 +35,8 @@ func assertBytes(t testing.TB, a, b []byte) (eq bool) {
 	return
 }
 
-func makeKey(dst []byte, i int) []byte {
-	dst = append(dst[:0], "key"...)
-	dst = strconv.AppendInt(dst, int64(i), 10)
-	return dst
+func assertSize(t testing.TB, a, b CacheSize) {
+	if !a.Equal(b) {
+		t.Errorf("cache size equal fail:\nneed: %s\ngot:  %s", a, b)
+	}
 }
