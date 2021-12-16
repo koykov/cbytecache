@@ -160,7 +160,7 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 func (c *CByteCache) Size() (r CacheSize) {
 	_ = c.buckets[len(c.buckets)-1]
 	for i := 0; i < len(c.buckets); i++ {
-		t, u, f := c.buckets[i].size()
+		t, u, f := c.buckets[i].size.snapshot()
 		r.t += MemorySize(t)
 		r.u += MemorySize(u)
 		r.f += MemorySize(f)
