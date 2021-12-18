@@ -51,10 +51,6 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		config.MetricsWriter = &DummyMetrics{}
 	}
 
-	if config.Logger == nil {
-		config.Logger = dummyLog
-	}
-
 	if config.Clock == nil {
 		config.Clock = &NativeClock{}
 	}
@@ -82,15 +78,15 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 
 	if config.Expire > 0 {
 		config.Clock.Schedule(config.Expire, func() {
-			if err := c.evict(); err != nil && c.config.Logger != nil {
-				c.config.Logger.Printf("eviction failed with error %s\n", err.Error())
+			if err := c.evict(); err != nil && c.l() != nil {
+				c.l().Printf("eviction failed with error %s\n", err.Error())
 			}
 		})
 	}
 	if config.Vacuum > 0 {
 		config.Clock.Schedule(config.Vacuum, func() {
-			if err := c.vacuum(); err != nil && c.config.Logger != nil {
-				c.config.Logger.Printf("vacuum failed with error %s\n", err.Error())
+			if err := c.vacuum(); err != nil && c.l() != nil {
+				c.l().Printf("vacuum failed with error %s\n", err.Error())
 			}
 		})
 	}
@@ -212,8 +208,8 @@ func (c *CByteCache) bulkExecWS(workers int, op string, fn func(*bucket) error, 
 			for {
 				if idx, ok := <-bucketQueue; ok {
 					bucket := c.buckets[idx]
-					if err := fn(bucket); err != nil && c.config.Logger != nil {
-						c.config.Logger.Printf("bucket %d %s failed with error: %s\n", idx, op, err.Error())
+					if err := fn(bucket); err != nil && c.l() != nil {
+						c.l().Printf("bucket %d %s failed with error: %s\n", idx, op, err.Error())
 					}
 					continue
 				}
@@ -246,4 +242,8 @@ func (c *CByteCache) checkCache(allow uint32) error {
 		}
 	}
 	return nil
+}
+
+func (c *CByteCache) l() Logger {
+	return c.config.Logger
 }

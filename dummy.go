@@ -14,13 +14,4 @@ func (*DummyMetrics) Corrupt(_ string)           {}
 func (*DummyMetrics) Collision(_ string)         {}
 func (*DummyMetrics) NoSpace(_ string)           {}
 
-type DummyLog struct{}
-
-func (*DummyLog) Printf(string, ...interface{}) {}
-func (*DummyLog) Print(...interface{})          {}
-func (*DummyLog) Println(...interface{})        {}
-
-var (
-	dummyMetrics = &DummyMetrics{}
-	dummyLog     = &DummyLog{}
-)
+var dummyMetrics = &DummyMetrics{}

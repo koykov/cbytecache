@@ -96,7 +96,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
-				b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
+				if b.l() != nil {
+					b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
+				}
 				b.m().Collision(b.k())
 				err = ErrEntryCollision
 				return
@@ -108,7 +110,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 
 	if b.arenaOffset >= b.alen() {
 		if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
-			b.l().Printf("bucket %d: no space on grow", b.idx)
+			if b.l() != nil {
+				b.l().Printf("bucket %d: no space on grow", b.idx)
+			}
 			b.m().NoSpace(b.k())
 			return ErrNoSpace
 		}
@@ -139,7 +143,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			b.arenaOffset++
 			if b.arenaOffset >= b.alen() {
 				if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
-					b.l().Printf("bucket %d: no space on write", b.idx)
+					if b.l() != nil {
+						b.l().Printf("bucket %d: no space on write", b.idx)
+					}
 					b.m().NoSpace(b.k())
 					return ErrNoSpace
 				}
@@ -260,12 +266,16 @@ func (b *bucket) bulkEvict() error {
 		return err
 	}
 
-	b.l().Printf("bucket #%d: bulk evict started", b.idx)
+	if b.l() != nil {
+		b.l().Printf("bucket #%d: bulk evict started", b.idx)
+	}
 
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
-		b.l().Printf("bucket #%d: bulk evict finished", b.idx)
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: bulk evict finished", b.idx)
+		}
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
@@ -301,7 +311,9 @@ func (b *bucket) bulkEvict() error {
 		bal, bao := b.alen(), b.arenaOffset
 		b.recycleArena(arenaID)
 		aal, aao := b.alen(), b.arenaOffset
-		b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
+		}
 		wg.Done()
 	}()
 
@@ -426,12 +438,16 @@ func (b *bucket) vacuum() error {
 		return err
 	}
 
-	b.l().Printf("bucket #%d: vacuum started", b.idx)
+	if b.l() != nil {
+		b.l().Printf("bucket #%d: vacuum started", b.idx)
+	}
 
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
-		b.l().Printf("bucket #%d: vacuum finished", b.idx)
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: vacuum finished", b.idx)
+		}
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
