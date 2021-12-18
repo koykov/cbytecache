@@ -215,19 +215,17 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 		dst = append(dst, arena.read(arenaOffset, entry.length)...)
 	} else {
 		rest := entry.length
-	loop:
-		dst = append(dst, arena.read(arenaOffset, arenaRest)...)
-		rest -= arenaRest
-		arenaID++
-		if arenaID >= b.alen() {
-			mw.Corrupt(b.k())
-			return dst, ErrEntryCorrupt
-		}
-		arena = &b.arena[arenaID]
-		arenaOffset = 0
-		arenaRest = min(rest, ArenaSize)
-		if rest > 0 {
-			goto loop
+		for rest > 0 {
+			dst = append(dst, arena.read(arenaOffset, arenaRest)...)
+			rest -= arenaRest
+			arenaID++
+			if arenaID >= b.alen() {
+				mw.Corrupt(b.k())
+				return dst, ErrEntryCorrupt
+			}
+			arena = &b.arena[arenaID]
+			arenaOffset = 0
+			arenaRest = min(rest, ArenaSize)
 		}
 	}
 	mw.Hit(b.k())
