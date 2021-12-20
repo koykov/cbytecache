@@ -8,6 +8,7 @@ import (
 	"github.com/koykov/cbytebuf"
 )
 
+// CByteCache is a cache implementation based on cbyte package.
 type CByteCache struct {
 	config  *Config
 	status  uint32
@@ -17,12 +18,15 @@ type CByteCache struct {
 	maxEntrySize uint32
 }
 
+// NewCByteCache makes cache instance according config.
 func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config == nil {
 		return nil, ErrBadConfig
 	}
+	// Config protection.
 	config = config.Copy()
 
+	// Check mandatory params.
 	if len(config.Key) == 0 {
 		return nil, ErrNoKey
 	}
@@ -32,6 +36,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
 	}
+	// Check single bucket size.
 	bucketSize := uint64(config.MaxSize) / uint64(config.Buckets)
 	if bucketSize > 0 && bucketSize > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
@@ -40,6 +45,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	if bucketSize > 0 && bucketSize < uint64(ArenaSize) {
 		return nil, fmt.Errorf("bucket size must be greater than arena size %d", ArenaSize)
 	}
+	// Check expire/vacuum durations.
 	if config.Expire > 0 && config.Expire < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
@@ -58,6 +64,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		config.Clock.Start()
 	}
 
+	// Init the cache and buckets.
 	c := &CByteCache{
 		config: config,
 		status: cacheStatusActive,
@@ -76,6 +83,7 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 		}
 	}
 
+	// Register expire and vacuum as scheduler jobs.
 	if config.Expire > 0 {
 		config.Clock.Schedule(config.Expire, func() {
 			if err := c.evict(); err != nil && c.l() != nil {
@@ -94,14 +102,17 @@ func NewCByteCache(config *Config) (*CByteCache, error) {
 	return c, ErrOK
 }
 
+// Set sets entry bytes to the cache.
 func (c *CByteCache) Set(key string, data []byte) error {
 	return c.set(key, data)
 }
 
+// SetMarshallerTo sets entry like protobuf object to the cache.
 func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
 	return c.setm(key, m)
 }
 
+// Internal bytes setter.
 func (c *CByteCache) set(key string, data []byte) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
@@ -121,6 +132,7 @@ func (c *CByteCache) set(key string, data []byte) error {
 	return bucket.set(key, h, data)
 }
 
+// Internal marshaller object setter.
 func (c *CByteCache) setm(key string, m MarshallerTo) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
@@ -140,10 +152,12 @@ func (c *CByteCache) setm(key string, m MarshallerTo) error {
 	return bucket.setm(key, h, m)
 }
 
+// Get gets entry bytes by key.
 func (c *CByteCache) Get(key string) ([]byte, error) {
 	return c.GetTo(nil, key)
 }
 
+// GetTo gets entry bytes to dst.
 func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	if err := c.checkCache(cacheStatusActive); err != nil {
 		return dst, err
@@ -153,6 +167,7 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 	return bucket.get(dst, h)
 }
 
+// Size returns cache size snapshot. Contains total, used and free sizes.
 func (c *CByteCache) Size() (r CacheSize) {
 	_ = c.buckets[len(c.buckets)-1]
 	for i := 0; i < len(c.buckets); i++ {
@@ -164,14 +179,19 @@ func (c *CByteCache) Size() (r CacheSize) {
 	return
 }
 
+// Reset performs force eviction of all check entries.
 func (c *CByteCache) Reset() error {
 	return c.bulkExec(resetWorkers, "reset", func(b *bucket) error { return b.reset() })
 }
 
+// Release releases all cache data.
 func (c *CByteCache) Release() error {
 	return c.bulkExecWS(releaseWorkers, "release", func(b *bucket) error { return b.release() }, cacheStatusActive|cacheStatusClosed)
 }
 
+// Close destroys cache and releases all data.
+//
+// You cannot use cache after that.
 func (c *CByteCache) Close() error {
 	atomic.StoreUint32(&c.status, cacheStatusClosed)
 	if err := c.Release(); err != nil {
