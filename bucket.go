@@ -11,6 +11,7 @@ import (
 	"github.com/koykov/fastconv"
 )
 
+// Cache bucket.
 type bucket struct {
 	config  *Config
 	idx     uint32
@@ -18,16 +19,22 @@ type bucket struct {
 	sizeMax uint32
 	size    bucketSize
 
-	mux   sync.RWMutex
-	buf   *cbytebuf.CByteBuf
+	mux sync.RWMutex
+	// Internal buffer.
+	buf *cbytebuf.CByteBuf
+	// Entry index. Value point to the index in entry array.
 	index map[uint64]uint32
+	// Entries storage.
 	entry []entry
 
+	// Memory arenas.
 	arena, arenaBuf []arena
 
+	// Index of current arena available to write data.
 	arenaOffset uint32
 }
 
+// Set p to bucket by h hash.
 func (b *bucket) set(key string, h uint64, p []byte) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
@@ -39,6 +46,7 @@ func (b *bucket) set(key string, h uint64, p []byte) (err error) {
 	return
 }
 
+// Set m to bucket by h hash.
 func (b *bucket) setm(key string, h uint64, m MarshallerTo) (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
@@ -46,6 +54,7 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo) (err error) {
 
 	b.mux.Lock()
 	defer b.mux.Unlock()
+	// Use internal buffer to convert m to bytes before set.
 	b.buf.ResetLen()
 	if _, err = b.buf.WriteMarshallerTo(m); err != nil {
 		return
@@ -54,6 +63,7 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo) (err error) {
 	return
 }
 
+// Internal setter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	var (
 		idx, pl uint32
@@ -64,23 +74,28 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 
 	defer b.buf.ResetLen()
 
+	// Try to get already existed entry.
 	if idx, ok = b.index[h]; ok {
 		if idx < b.elen() {
 			e = &b.entry[idx]
 		}
 	}
 
+	// Extend entry data with collision control data.
 	if p, pl, err = b.c7n(key, p); err != nil {
 		return
 	}
 
+	// Cache doesn't support of overwrite existing entries, but it's handy to use known existing entry for collision check.
 	if e != nil {
 		if b.config.CollisionCheck {
+			// Prepare space in buffer to get potentially collided entry.
 			bl := b.buf.Len()
 			if err = b.buf.GrowDelta(int(e.length)); err != nil {
 				return
 			}
 			dst := b.buf.Bytes()[bl:]
+			// Read entry bytes.
 			if dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
 				return
 			}
@@ -88,6 +103,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				err = ErrEntryCorrupt
 				return
 			}
+			// Extract raw key from entry body.
 			kl := binary.LittleEndian.Uint16(dst[:keySizeBytes])
 			dst = dst[keySizeBytes:]
 			if kl >= uint16(len(dst)) {
@@ -96,6 +112,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
+				// Keys don't match - collision caught.
 				if b.l() != nil {
 					b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
 				}
@@ -104,10 +121,12 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				return
 			}
 		}
+		// Exit anyway.
 		err = ErrEntryExists
 		return
 	}
 
+	// Check if more space needed before write.
 	if b.arenaOffset >= b.alen() {
 		if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
 			if b.l() != nil {
@@ -126,21 +145,28 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 		}
 	}
+	// Get current arena.
 	arena := &b.arena[b.arenaOffset]
 	arenaID := uintptr(unsafe.Pointer(&arena.id))
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
+		// Arena has enough space to write the entry.
 		arena.write(p)
 	} else {
+		// Arena hasn't enough space - need share entry among arenas.
 		mustWrite := arenaRest
 		for {
+			// Write entry bytes that fits to arena free space.
 			arena.write(p[:mustWrite])
 			p = p[mustWrite:]
 			if rest -= mustWrite; rest == 0 {
+				// All entry bytes written.
 				break
 			}
+			// Switch to the next arena.
 			b.arenaOffset++
+			// Alloc new arena if needed.
 			if b.arenaOffset >= b.alen() {
 				if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
 					if b.l() != nil {
@@ -160,10 +186,12 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				}
 			}
 			arena = &b.arena[b.arenaOffset]
+			// Calculate rest of bytes to write.
 			mustWrite = min(rest, ArenaSize)
 		}
 	}
 
+	// Create and register new entry.
 	b.entry = append(b.entry, entry{
 		hash:   h,
 		offset: arenaOffset,
@@ -178,6 +206,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	return ErrOK
 }
 
+// Get entry by h hash.
 func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	if err := b.checkStatus(); err != nil {
 		return dst, err
@@ -206,7 +235,9 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	return b.getLF(dst, entry, b.m())
 }
 
+// Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, error) {
+	// Get starting arena.
 	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
@@ -218,8 +249,10 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 
 	arenaRest := ArenaSize - arenaOffset
 	if entry.offset+entry.length < ArenaSize {
+		// Good case: entry doesn't share among arenas.
 		dst = append(dst, arena.read(arenaOffset, entry.length)...)
 	} else {
+		// Walk over arenas and collect entry by parts.
 		rest := entry.length
 		for rest > 0 {
 			dst = append(dst, arena.read(arenaOffset, arenaRest)...)
@@ -238,24 +271,29 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 	return dst, ErrOK
 }
 
+// Extend entry with collision control data.
 func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	pl := uint32(len(p))
 	if !b.config.CollisionCheck {
 		return p, pl, nil
 	}
 	var err error
+	// Write key length to the first two bytes.
 	bl := b.buf.Len()
 	if err = b.buf.GrowLen(bl + keySizeBytes); err != nil {
 		return p, pl, err
 	}
 	kl := uint16(len(key))
 	binary.LittleEndian.PutUint16(b.buf.Bytes()[bl:], kl)
+	// Write key ...
 	if _, err = b.buf.WriteString(key); err != nil {
 		return p, pl, err
 	}
+	// ... and body.
 	if _, err = b.buf.Write(p); err != nil {
 		return p, pl, err
 	}
+	// p extends now with collision control data.
 	p = b.buf.Bytes()[bl:]
 	pl = uint32(len(p))
 	return p, pl, err
