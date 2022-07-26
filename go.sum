@@ -1,0 +1,16 @@
+github.com/koykov/bytealg v0.0.0-20211029190941-81777d9bda75 h1:53f2Sqq1P8X2TT3m//D8FI1vyV+ebAZz5vHCj1wXUkU=
+github.com/koykov/bytealg v0.0.0-20211029190941-81777d9bda75/go.mod h1:GsRL37HNnRhJ5Igs0WV7sIVWo8R7qBB9KJh6wzVUFe0=
+github.com/koykov/cbyte v0.0.0-20210320125217-aa2cbbd67631 h1:Q128eox3Mz3+rwRLB+OHreXIm0MM0Yjitsw+RyoIttA=
+github.com/koykov/cbyte v0.0.0-20210320125217-aa2cbbd67631/go.mod h1:m4xVVamXPUlD8tSJGTF1M98l/GBkgU9KjCYmzQsIMxU=
+github.com/koykov/cbytebuf v0.0.0-20210722210402-4a93ea99bc23 h1:OGnTibmXvielGrlqWMVXITAa7xEQ/00bwA1fZdmnOWs=
+github.com/koykov/cbytebuf v0.0.0-20210722210402-4a93ea99bc23/go.mod h1:coPzZjW5Z+9LzardHEhHzHo5Es7rMytMl/FPMjCf98Y=
+github.com/koykov/clock v0.0.0-20220407222926-01dff5a471c4 h1:k/LsF8DQvyBvqmEr0oQEVD1+t7d2AjSx8UOQ8vYdU1M=
+github.com/koykov/clock v0.0.0-20220407222926-01dff5a471c4/go.mod h1:N8aLwVubsYJqlz5xxTNNZCN3lAE3vmZcdrsxwt6o6nI=
+github.com/koykov/fastconv v0.0.0-20211028200057-f6897ace3bc2 h1:jIlvXIudUQ6ER2y/oExe8Qa3lnZ+6C0BpPthjfDhxvs=
+github.com/koykov/fastconv v0.0.0-20211028200057-f6897ace3bc2/go.mod h1:JXdtdh0aCcSmxLsVUoYP61lmxpL6dWOXEKxCIR+MlGg=
+github.com/koykov/hash v0.0.0-20211114213030-b12f4a779e5d h1:QbOYJf3+IuQfP8p8DH81zE8se1ub9st9Udbxlsfnf5M=
+github.com/koykov/hash v0.0.0-20211114213030-b12f4a779e5d/go.mod h1:+utwpI8WtsRQsCwtxNZKTCobJuJ8j3RNjTYLb270u+U=
+github.com/koykov/lbpool v0.0.0-20220624192435-0d9ef51aad0d h1:rvnIlHqKU++wpNL9e3g7dlBQL2x6MVCSrPnwXcU/bmI=
+github.com/koykov/lbpool v0.0.0-20220624192435-0d9ef51aad0d/go.mod h1:BAP4KCJGGY065PiCwGFt2etMadUboRm3bxyDz85fiuc=
+github.com/koykov/policy v0.0.0-20211205213434-fe65faba0cab h1:YBfqX4csQMLncAqrHFIIdnxtiyPW7OjW5KWjv5E/v84=
+github.com/koykov/policy v0.0.0-20211205213434-fe65faba0cab/go.mod h1:wHHIIRCCjvlBtX4mSGEBALSAlyrdRA02GTk/jBP+ufg=
