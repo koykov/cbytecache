@@ -5,7 +5,6 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/koykov/cbytebuf"
 	"github.com/koykov/fastconv"
@@ -147,7 +146,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 	// Get current arena.
 	arena := &b.arena[b.arenaOffset]
-	arenaID := uintptr(unsafe.Pointer(&arena.id))
+	arenaID := arena.id
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
@@ -193,11 +192,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 
 	// Create and register new entry.
 	b.entry = append(b.entry, entry{
-		hash:   h,
-		offset: arenaOffset,
-		length: pl,
-		expire: b.now() + uint32(b.config.Expire)/1e9,
-		aidptr: arenaID,
+		hash:    h,
+		offset:  arenaOffset,
+		length:  pl,
+		expire:  b.now() + uint32(b.config.Expire)/1e9,
+		arenaID: arenaID,
 	})
 	b.index[h] = b.elen() - 1
 
@@ -238,7 +237,7 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, error) {
 	// Get starting arena.
-	arenaID := entry.arenaID()
+	arenaID := entry.arenaID
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
@@ -334,7 +333,7 @@ func (b *bucket) bulkEvict() error {
 		return ErrOK
 	}
 
-	arenaID := b.entry[z-1].arenaID()
+	arenaID := b.entry[z-1].arenaID
 
 	var wg sync.WaitGroup
 
