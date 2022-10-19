@@ -18,8 +18,8 @@ type CByteCache struct {
 	maxEntrySize uint32
 }
 
-// NewCByteCache makes cache instance according config.
-func NewCByteCache(config *Config) (*CByteCache, error) {
+// New makes cache instance according config.
+func New(config *Config) (*CByteCache, error) {
 	if config == nil {
 		return nil, ErrBadConfig
 	}

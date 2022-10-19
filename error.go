@@ -10,7 +10,7 @@ var (
 
 	ErrBadConfig      = errors.New("config is empty")
 	ErrNoKey          = errors.New("cache must have key")
-	ErrBadCache       = errors.New("cache uninitialized, use NewCByteCache()")
+	ErrBadCache       = errors.New("cache uninitialized, use New()")
 	ErrCacheClosed    = errors.New("cache closed")
 	ErrBadHasher      = errors.New("you must provide hasher helper")
 	ErrBadBuckets     = errors.New("buckets count must be power of two and great than zero")

@@ -14,7 +14,7 @@ import (
 func TestCacheIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
 		conf := DefaultConfig(fmt.Sprintf("cbc%d", entries), time.Minute, &fnv.Hasher{})
-		cache, err := NewCByteCache(conf)
+		cache, err := New(conf)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +71,7 @@ func TestCByteCacheExpire(t *testing.T) {
 	t.Run("single", func(t *testing.T) {
 		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
 		conf.Clock = clock.NewClock()
-		cache, err := NewCByteCache(conf)
+		cache, err := New(conf)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func TestCByteCacheExpire(t *testing.T) {
 
 		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
 		conf.Clock = clock.NewClock()
-		cache, err := NewCByteCache(conf)
+		cache, err := New(conf)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -131,7 +131,7 @@ func TestCByteCacheVacuum(t *testing.T) {
 	conf.Buckets = 1
 	conf.Clock = clock.NewClock()
 	conf.Vacuum = time.Minute * 2
-	cache, err := NewCByteCache(conf)
+	cache, err := New(conf)
 	if err != nil {
 		t.Fatal(err)
 	}
