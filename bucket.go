@@ -115,7 +115,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				if b.l() != nil {
 					b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
 				}
-				b.m().Collision(b.k())
+				b.mw().Collision()
 				err = ErrEntryCollision
 				return
 			}
@@ -131,11 +131,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			if b.l() != nil {
 				b.l().Printf("bucket %d: no space on grow", b.idx)
 			}
-			b.m().NoSpace(b.k())
+			b.mw().NoSpace()
 			return ErrNoSpace
 		}
 		for {
-			b.m().Alloc(b.k(), ArenaSize)
+			b.mw().Alloc(ArenaSize)
 			arena := allocArena(b.alen())
 			b.size.snap(snapAlloc, ArenaSize)
 			b.arena = append(b.arena, *arena)
@@ -171,11 +171,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
 					}
-					b.m().NoSpace(b.k())
+					b.mw().NoSpace()
 					return ErrNoSpace
 				}
 				for {
-					b.m().Alloc(b.k(), ArenaSize)
+					b.mw().Alloc(ArenaSize)
 					arena := allocArena(b.alen())
 					b.size.snap(snapAlloc, ArenaSize)
 					b.arena = append(b.arena, *arena)
@@ -201,7 +201,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)
-	b.m().Set(b.k(), pl)
+	b.mw().Set(pl)
 	return ErrOK
 }
 
@@ -218,20 +218,20 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		ok  bool
 	)
 	if idx, ok = b.index[h]; !ok {
-		b.m().Miss(b.k())
+		b.mw().Miss()
 		return dst, ErrNotFound
 	}
 	if idx >= b.elen() {
-		b.m().Miss(b.k())
+		b.mw().Miss()
 		return dst, ErrNotFound
 	}
 	entry := &b.entry[idx]
 	if entry.expire < b.now() {
-		b.m().Expire(b.k())
+		b.mw().Expire()
 		return dst, ErrNotFound
 	}
 
-	return b.getLF(dst, entry, b.m())
+	return b.getLF(dst, entry, b.mw())
 }
 
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
@@ -241,7 +241,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
-		mw.Miss(b.k())
+		mw.Miss()
 		return dst, ErrNotFound
 	}
 	arena := &b.arena[arenaID]
@@ -258,7 +258,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 			rest -= arenaRest
 			arenaID++
 			if arenaID >= b.alen() {
-				mw.Corrupt(b.k())
+				mw.Corrupt()
 				return dst, ErrEntryCorrupt
 			}
 			arena = &b.arena[arenaID]
@@ -266,7 +266,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 			arenaRest = min(rest, ArenaSize)
 		}
 	}
-	mw.Hit(b.k())
+	mw.Hit()
 	return dst, ErrOK
 }
 
@@ -466,7 +466,7 @@ func (b *bucket) evictRange(z int) {
 
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
-	b.m().Evict(b.k(), e.length)
+	b.mw().Evict(e.length)
 	delete(b.index, e.hash)
 }
 
@@ -593,11 +593,7 @@ func (b *bucket) elen() uint32 {
 	return uint32(len(b.entry))
 }
 
-func (b *bucket) k() string {
-	return b.config.Key
-}
-
-func (b *bucket) m() MetricsWriter {
+func (b *bucket) mw() MetricsWriter {
 	return b.config.MetricsWriter
 }
 

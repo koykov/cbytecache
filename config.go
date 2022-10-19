@@ -8,9 +8,6 @@ import (
 
 // Config describes cache properties and behavior.
 type Config struct {
-	// Unique cache key. Indicates queue in logs and metrics.
-	// Mandatory param.
-	Key string
 	// Keys hasher helper.
 	// Mandatory param.
 	Hasher hash.Hasher
@@ -42,9 +39,8 @@ func (c *Config) Copy() *Config {
 }
 
 // DefaultConfig makes config with default params.
-func DefaultConfig(key string, expire time.Duration, hasher hash.Hasher) *Config {
+func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
 	c := Config{
-		Key:     key,
 		Hasher:  hasher,
 		Buckets: 1024,
 		Expire:  expire,
@@ -53,8 +49,8 @@ func DefaultConfig(key string, expire time.Duration, hasher hash.Hasher) *Config
 }
 
 // DefaultConfigWS makes default config with given max size.
-func DefaultConfigWS(key string, expire time.Duration, hasher hash.Hasher, maxSize MemorySize) *Config {
-	c := DefaultConfig(key, expire, hasher)
+func DefaultConfigWS(expire time.Duration, hasher hash.Hasher, maxSize MemorySize) *Config {
+	c := DefaultConfig(expire, hasher)
 	c.MaxSize = maxSize
 	return c
 }

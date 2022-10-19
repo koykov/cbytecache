@@ -9,7 +9,6 @@ var (
 	ErrOK error = nil
 
 	ErrBadConfig      = errors.New("config is empty")
-	ErrNoKey          = errors.New("cache must have key")
 	ErrBadCache       = errors.New("cache uninitialized, use New()")
 	ErrCacheClosed    = errors.New("cache closed")
 	ErrBadHasher      = errors.New("you must provide hasher helper")

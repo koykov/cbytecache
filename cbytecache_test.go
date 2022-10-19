@@ -2,7 +2,6 @@ package cbytecache
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 
 func TestCacheIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
-		conf := DefaultConfig(fmt.Sprintf("cbc%d", entries), time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		cache, err := New(conf)
 		if err != nil {
 			t.Fatal(err)
@@ -69,7 +68,7 @@ func TestCacheIO(t *testing.T) {
 
 func TestCByteCacheExpire(t *testing.T) {
 	t.Run("single", func(t *testing.T) {
-		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		conf.Clock = clock.NewClock()
 		cache, err := New(conf)
 		if err != nil {
@@ -98,7 +97,7 @@ func TestCByteCacheExpire(t *testing.T) {
 			expectSize = 0
 		)
 
-		conf := DefaultConfig("cbc_expire", time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		conf.Clock = clock.NewClock()
 		cache, err := New(conf)
 		if err != nil {
@@ -127,7 +126,7 @@ func TestCByteCacheExpire(t *testing.T) {
 func TestCByteCacheVacuum(t *testing.T) {
 	const entries = 1e6
 
-	conf := DefaultConfig("cbc_vacuum", time.Minute, &fnv.Hasher{})
+	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 	conf.Buckets = 1
 	conf.Clock = clock.NewClock()
 	conf.Vacuum = time.Minute * 2
