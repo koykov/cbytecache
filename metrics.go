@@ -5,7 +5,7 @@ type MetricsWriter interface {
 	Free(size uint32)
 	Release(size uint32)
 	Set(len uint32)
-	Evict(len uint32)
+	Evict()
 	Miss()
 	Hit()
 	Expire()

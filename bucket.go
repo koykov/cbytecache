@@ -466,7 +466,8 @@ func (b *bucket) evictRange(z int) {
 
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
-	b.mw().Evict(e.length)
+	b.mw().Free(e.length)
+	b.mw().Evict()
 	delete(b.index, e.hash)
 }
 
@@ -496,6 +497,7 @@ func (b *bucket) vacuum() error {
 	pos := b.alen() - ad + 1
 	for i := pos; i < b.alen(); i++ {
 		b.arena[i].release()
+		b.mw().Release(ArenaSize)
 		b.size.snap(snapRelease, ArenaSize)
 	}
 	b.arena = b.arena[:pos]
@@ -562,6 +564,7 @@ func (b *bucket) release() error {
 		var i uint32
 		for i = 0; i < al; i++ {
 			b.arena[i].release()
+			b.mw().Release(ArenaSize)
 			b.size.snap(snapRelease, ArenaSize)
 		}
 	}()
