@@ -93,6 +93,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			if err = b.buf.GrowDelta(int(e.length)); err != nil {
 				return
 			}
+			p = b.buf.Bytes()[:bl] // update p due to possible buffer grow
 			dst := b.buf.Bytes()[bl:]
 			// Read entry bytes.
 			if dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
@@ -146,7 +147,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 	// Get current arena.
 	arena := &b.arena[b.arenaOffset]
-	arenaID := arena.id
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
@@ -192,11 +192,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 
 	// Create and register new entry.
 	b.entry = append(b.entry, entry{
-		hash:    h,
-		offset:  arenaOffset,
-		length:  pl,
-		expire:  b.now() + uint32(b.config.Expire)/1e9,
-		arenaID: arenaID,
+		hash:   h,
+		offset: arenaOffset,
+		length: pl,
+		expire: b.now() + uint32(b.config.Expire)/1e9,
+		aidptr: arena.idPtr(),
 	})
 	b.index[h] = b.elen() - 1
 
@@ -237,7 +237,7 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, error) {
 	// Get starting arena.
-	arenaID := entry.arenaID
+	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
@@ -273,9 +273,6 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 // Extend entry with collision control data.
 func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	pl := uint32(len(p))
-	if !b.config.CollisionCheck {
-		return p, pl, nil
-	}
 	var err error
 	// Write key length to the first two bytes.
 	bl := b.buf.Len()
@@ -333,7 +330,7 @@ func (b *bucket) bulkEvict() error {
 		return ErrOK
 	}
 
-	arenaID := b.entry[z-1].arenaID
+	arenaID := b.entry[z-1].arenaID()
 
 	var wg sync.WaitGroup
 
@@ -429,7 +426,7 @@ func (b *bucket) recycleArena(arenaID uint32) {
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
 		b.arena[i].id = uint32(i)
-		if i >= arenaIdx {
+		if uint32(i) > b.arenaOffset {
 			b.arena[i].h.Len = 0
 		}
 	}

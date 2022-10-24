@@ -8,4 +8,5 @@ require (
 	github.com/koykov/clock v1.1.0
 	github.com/koykov/fastconv v1.0.0
 	github.com/koykov/hash v1.0.0
+	github.com/koykov/indirect v1.0.0
 )

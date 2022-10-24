@@ -1,9 +1,16 @@
 package cbytecache
 
+import "github.com/koykov/indirect"
+
 type entry struct {
-	hash    uint64
-	offset  uint32
-	length  uint32
-	expire  uint32 // overflows at 2106-02-07 06:28:15
-	arenaID uint32
+	hash   uint64
+	offset uint32
+	length uint32
+	expire uint32 // overflows at 2106-02-07 06:28:15
+	aidptr uintptr
+}
+
+func (e entry) arenaID() uint32 {
+	uptr := indirect.ToUnsafePtr(e.aidptr)
+	return *(*uint32)(uptr)
 }

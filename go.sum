@@ -10,6 +10,8 @@ github.com/koykov/fastconv v1.0.0 h1:WnsCYcrrQkUWEKK4VbVX7BuGb6jFhE8Q0Ebl3eAkHic
 github.com/koykov/fastconv v1.0.0/go.mod h1:Y7I12pumAx+2iH1Yh0X85UpywP7IET/+M7S17toJBes=
 github.com/koykov/hash v1.0.0 h1:9fO+G934GvZqdtnpn6rfv5kipxUw9Tix+VswM7heASA=
 github.com/koykov/hash v1.0.0/go.mod h1:O9RBNTOh5CSr3z6JSchbN6SXhB4TrqsKvS9S3zr6VJ4=
+github.com/koykov/indirect v1.0.0 h1:3kog1xvVUEB2142K2/AZRhnOKN2N8KNahHHkE+KT7ec=
+github.com/koykov/indirect v1.0.0/go.mod h1:2qWC0hrIHIexlKaqPA0VWEa0s2V/qxxNJv7XPncnh2I=
 github.com/koykov/lbpool v1.0.1 h1:2zb7GOj+fYF2dxG15DTdwfKWn19RkOk8w1aGPlvgHd4=
 github.com/koykov/lbpool v1.0.1/go.mod h1:BAP4KCJGGY065PiCwGFt2etMadUboRm3bxyDz85fiuc=
 github.com/koykov/policy v1.0.0 h1:xETNBdxGA74BRJcRtr7Yf/Gjr5LtyzlAWIquJiRc+kU=
