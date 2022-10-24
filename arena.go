@@ -57,7 +57,11 @@ func (a arena) offset() uint32 {
 
 // Get length of free space in arena.
 func (a arena) rest() uint32 {
-	return uint32(a.h.Cap - a.h.Len)
+	delta := a.h.Cap - a.h.Len
+	if delta <= 0 {
+		return 0
+	}
+	return uint32(delta)
 }
 
 // Release memory arena.
