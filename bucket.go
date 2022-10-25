@@ -95,22 +95,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			}
 			p = b.buf.Bytes()[:bl] // update p due to possible buffer grow
 			dst := b.buf.Bytes()[bl:]
-			// Read entry bytes.
-			if dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
+			// Read entry key and payload.
+			var key1 string
+			if key1, dst, err = b.getLF(dst[:0], e, dummyMetrics); err != nil {
 				return
 			}
-			if len(dst) < keySizeBytes {
-				err = ErrEntryCorrupt
-				return
-			}
-			// Extract raw key from entry body.
-			kl := binary.LittleEndian.Uint16(dst[:keySizeBytes])
-			dst = dst[keySizeBytes:]
-			if kl >= uint16(len(dst)) {
-				err = ErrEntryCorrupt
-				return
-			}
-			key1 := fastconv.B2S(dst[:kl])
 			if key1 != key {
 				// Keys don't match - collision caught.
 				if b.l() != nil {
@@ -231,18 +220,20 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		return dst, ErrNotFound
 	}
 
-	return b.getLF(dst, entry, b.mw())
+	var err error
+	_, dst, err = b.getLF(dst, entry, b.mw())
+	return dst, err
 }
 
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
-func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, error) {
+func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []byte, error) {
 	// Get starting arena.
 	arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
 	if arenaID >= b.alen() {
 		mw.Miss()
-		return dst, ErrNotFound
+		return "", dst, ErrNotFound
 	}
 	arena := &b.arena[arenaID]
 
@@ -259,7 +250,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 			arenaID++
 			if arenaID >= b.alen() {
 				mw.Corrupt()
-				return dst, ErrEntryCorrupt
+				return "", dst, ErrEntryCorrupt
 			}
 			arena = &b.arena[arenaID]
 			arenaOffset = 0
@@ -267,30 +258,41 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) ([]byte, erro
 		}
 	}
 	mw.Hit()
-	return dst, ErrOK
+
+	if len(dst) < 2 {
+		return "", dst, ErrEntryCorrupt
+	}
+	l := len(dst)
+	kl := binary.LittleEndian.Uint16(dst[l-2:])
+	if l-2 <= int(kl) {
+		return "", dst, ErrEntryCorrupt
+	}
+	key := fastconv.B2S(dst[l-int(kl)-2 : l-2])
+
+	return key, dst[:l-int(kl)-2], ErrOK
 }
 
 // Extend entry with collision control data.
 func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	pl := uint32(len(p))
 	var err error
-	// Write key length to the first two bytes.
+	// Write payload at start.
+	if _, err = b.buf.Write(p); err != nil {
+		return p, pl, err
+	}
+	// Write key.
+	if _, err = b.buf.WriteString(key); err != nil {
+		return p, pl, err
+	}
+	// Write key length to the last two bytes.
 	bl := b.buf.Len()
 	if err = b.buf.GrowLen(bl + keySizeBytes); err != nil {
 		return p, pl, err
 	}
 	kl := uint16(len(key))
 	binary.LittleEndian.PutUint16(b.buf.Bytes()[bl:], kl)
-	// Write key ...
-	if _, err = b.buf.WriteString(key); err != nil {
-		return p, pl, err
-	}
-	// ... and body.
-	if _, err = b.buf.Write(p); err != nil {
-		return p, pl, err
-	}
 	// p extends now with collision control data.
-	p = b.buf.Bytes()[bl:]
+	p = b.buf.Bytes()
 	pl = uint32(len(p))
 	return p, pl, err
 }

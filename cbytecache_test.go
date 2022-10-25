@@ -93,7 +93,7 @@ func TestCByteCacheExpire(t *testing.T) {
 	t.Run("multi", func(t *testing.T) {
 		const (
 			entries    = 1e5
-			fullSize   = 25333443
+			fullSize   = 26322333
 			expectSize = 0
 		)
 
@@ -141,7 +141,7 @@ func TestCByteCacheVacuum(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	assertSize(t, cache.Size(), CacheSize{268435456, 253333443, 15102013})
+	assertSize(t, cache.Size(), CacheSize{268435456, 264222333, 4213123})
 	// Wait for expiration.
 	conf.Clock.Jump(time.Minute)
 	time.Sleep(time.Millisecond * 5)
