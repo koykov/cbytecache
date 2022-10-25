@@ -20,7 +20,10 @@ func allocArena(id uint32) *arena {
 	return a
 }
 
-func (a arena) idPtr() uintptr {
+// Get raw unsafe pointer to id field.
+//
+// Caution! Pointer receiver strongly required here.
+func (a *arena) idPtr() uintptr {
 	return uintptr(unsafe.Pointer(&a.id))
 }
 
