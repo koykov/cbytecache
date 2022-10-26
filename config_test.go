@@ -8,8 +8,8 @@ import (
 func TestConfigCopy(t *testing.T) {
 	conf := DefaultConfig(time.Minute, nil)
 	cpy := conf.Copy()
-	conf.Expire = 30 * time.Second
-	if cpy.Expire != time.Minute {
+	conf.ExpireInterval = 30 * time.Second
+	if cpy.ExpireInterval != time.Minute {
 		t.Error("config copy failed")
 	}
 }

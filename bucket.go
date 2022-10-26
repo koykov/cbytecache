@@ -12,11 +12,11 @@ import (
 
 // Cache bucket.
 type bucket struct {
-	config  *Config
-	idx     uint32
-	status  uint32
-	sizeMax uint32
-	size    bucketSize
+	config *Config
+	idx    uint32
+	status uint32
+	maxCap uint32
+	size   bucketSize
 
 	mux sync.RWMutex
 	// Internal buffer.
@@ -30,7 +30,7 @@ type bucket struct {
 	arena, arenaBuf []arena
 
 	// Index of current arena available to write data.
-	arenaOffset uint32
+	arendIdx uint32
 }
 
 // Set p to bucket by h hash.
@@ -116,8 +116,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 
 	// Check if more space needed before write.
-	if b.arenaOffset >= b.alen() {
-		if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
+	if b.arendIdx >= b.alen() {
+		if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 			if b.l() != nil {
 				b.l().Printf("bucket %d: no space on grow", b.idx)
 			}
@@ -125,17 +125,18 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			return ErrNoSpace
 		}
 		for {
-			b.mw().Alloc(ArenaSize)
-			arena := allocArena(b.alen())
-			b.size.snap(snapAlloc, ArenaSize)
+			b.mw().Alloc(b.ac32())
+			arena := allocArena(b.alen(), b.ac())
+			b.size.snap(snapAlloc, b.ac32())
 			b.arena = append(b.arena, *arena)
-			if b.alen() > b.arenaOffset {
+			if b.alen() > b.arendIdx {
 				break
 			}
 		}
 	}
 	// Get current arena.
-	arena := &b.arena[b.arenaOffset]
+	arena := &b.arena[b.arendIdx]
+	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
@@ -153,10 +154,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 				break
 			}
 			// Switch to the next arena.
-			b.arenaOffset++
+			b.arendIdx++
 			// Alloc new arena if needed.
-			if b.arenaOffset >= b.alen() {
-				if b.sizeMax > 0 && b.alen()*ArenaSize+ArenaSize > b.sizeMax {
+			if b.arendIdx >= b.alen() {
+				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
 					}
@@ -164,18 +165,18 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 					return ErrNoSpace
 				}
 				for {
-					b.mw().Alloc(ArenaSize)
-					arena := allocArena(b.alen())
-					b.size.snap(snapAlloc, ArenaSize)
+					b.mw().Alloc(b.ac32())
+					arena := allocArena(b.alen(), b.ac())
+					b.size.snap(snapAlloc, b.ac32())
 					b.arena = append(b.arena, *arena)
-					if b.alen() > b.arenaOffset {
+					if b.alen() > b.arendIdx {
 						break
 					}
 				}
 			}
-			arena = &b.arena[b.arenaOffset]
+			arena = &b.arena[b.arendIdx]
 			// Calculate rest of bytes to write.
-			mustWrite = min(rest, ArenaSize)
+			mustWrite = min(rest, b.ac32())
 		}
 	}
 
@@ -184,8 +185,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 		hash:   h,
 		offset: arenaOffset,
 		length: pl,
-		expire: b.now() + uint32(b.config.Expire)/1e9,
-		aidptr: arena.idPtr(),
+		expire: b.now() + uint32(b.config.ExpireInterval)/1e9,
+		aidptr: startArena.idPtr(),
 	})
 	b.index[h] = b.elen() - 1
 
@@ -237,8 +238,8 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 	}
 	arena := &b.arena[arenaID]
 
-	arenaRest := ArenaSize - arenaOffset
-	if entry.offset+entry.length < ArenaSize {
+	arenaRest := b.ac32() - arenaOffset
+	if entry.offset+entry.length < b.ac32() {
 		// Good case: entry doesn't share among arenas.
 		dst = append(dst, arena.read(arenaOffset, entry.length)...)
 	} else {
@@ -246,7 +247,9 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 		rest := entry.length
 		for rest > 0 {
 			dst = append(dst, arena.read(arenaOffset, arenaRest)...)
-			rest -= arenaRest
+			if rest -= arenaRest; rest == 0 {
+				break
+			}
 			arenaID++
 			if arenaID >= b.alen() {
 				mw.Corrupt()
@@ -254,22 +257,22 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 			}
 			arena = &b.arena[arenaID]
 			arenaOffset = 0
-			arenaRest = min(rest, ArenaSize)
+			arenaRest = min(rest, b.ac32())
 		}
 	}
 	mw.Hit()
 
-	if len(dst) < 2 {
+	if len(dst) < keySizeBytes {
 		return "", dst, ErrEntryCorrupt
 	}
 	l := len(dst)
-	kl := binary.LittleEndian.Uint16(dst[l-2:])
+	kl := binary.LittleEndian.Uint16(dst[l-keySizeBytes:])
 	if l-2 <= int(kl) {
 		return "", dst, ErrEntryCorrupt
 	}
-	key := fastconv.B2S(dst[l-int(kl)-2 : l-2])
+	key := fastconv.B2S(dst[l-int(kl)-keySizeBytes : l-keySizeBytes])
 
-	return key, dst[:l-int(kl)-2], ErrOK
+	return key, dst[:l-int(kl)-keySizeBytes], ErrOK
 }
 
 // Extend entry with collision control data.
@@ -344,9 +347,9 @@ func (b *bucket) bulkEvict() error {
 
 	wg.Add(1)
 	go func() {
-		bal, bao := b.alen(), b.arenaOffset
+		bal, bao := b.alen(), b.arendIdx
 		b.recycleArena(arenaID)
-		aal, aao := b.alen(), b.arenaOffset
+		aal, aao := b.alen(), b.arendIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
 		}
@@ -422,13 +425,13 @@ func (b *bucket) recycleArena(arenaID uint32) {
 
 	b.arenaBuf = append(b.arenaBuf[:0], b.arena[:arenaIdx]...)
 	copy(b.arena, b.arena[arenaIdx:])
-	b.arenaOffset = uint32(al - arenaIdx - 1)
-	b.arena = append(b.arena[:b.arenaOffset+1], b.arenaBuf...)
+	b.arendIdx = uint32(al - arenaIdx - 1)
+	b.arena = append(b.arena[:b.arendIdx+1], b.arenaBuf...)
 
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
 		b.arena[i].id = uint32(i)
-		if uint32(i) > b.arenaOffset {
+		if uint32(i) > b.arendIdx {
 			b.arena[i].h.Len = 0
 		}
 	}
@@ -489,15 +492,15 @@ func (b *bucket) vacuum() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	ad := b.alen() - b.arenaOffset
+	ad := b.alen() - b.arendIdx
 	if ad <= 1 {
 		return ErrOK
 	}
 	pos := b.alen() - ad + 1
 	for i := pos; i < b.alen(); i++ {
 		b.arena[i].release()
-		b.mw().Release(ArenaSize)
-		b.size.snap(snapRelease, ArenaSize)
+		b.mw().Release(b.ac32())
+		b.size.snap(snapRelease, b.ac32())
 	}
 	b.arena = b.arena[:pos]
 	b.arenaBuf = b.arenaBuf[:0]
@@ -518,7 +521,7 @@ func (b *bucket) reset() error {
 	}()
 
 	b.buf.ResetLen()
-	b.arenaOffset = 0
+	b.arendIdx = 0
 	b.evictRange(len(b.entry))
 	b.entry = b.entry[:0]
 
@@ -538,7 +541,7 @@ func (b *bucket) release() error {
 	}()
 
 	b.buf.Release()
-	b.arenaOffset = 0
+	b.arendIdx = 0
 
 	var wg sync.WaitGroup
 
@@ -563,8 +566,8 @@ func (b *bucket) release() error {
 		var i uint32
 		for i = 0; i < al; i++ {
 			b.arena[i].release()
-			b.mw().Release(ArenaSize)
-			b.size.snap(snapRelease, ArenaSize)
+			b.mw().Release(b.ac32())
+			b.size.snap(snapRelease, b.ac32())
 		}
 	}()
 
@@ -597,6 +600,14 @@ func (b *bucket) elen() uint32 {
 
 func (b *bucket) mw() MetricsWriter {
 	return b.config.MetricsWriter
+}
+
+func (b *bucket) ac() MemorySize {
+	return b.config.ArenaCapacity
+}
+
+func (b *bucket) ac32() uint32 {
+	return uint32(b.config.ArenaCapacity)
 }
 
 func (b *bucket) l() Logger {

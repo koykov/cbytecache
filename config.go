@@ -8,20 +8,23 @@ import (
 
 // Config describes cache properties and behavior.
 type Config struct {
+	// Maximum cache payload size (it doesn't consider index size).
+	Capacity MemorySize
 	// Keys hasher helper.
 	// Mandatory param.
 	Hasher hash.Hasher
 	// Buckets count. Must be power of two.
 	// Mandatory param.
 	Buckets uint
+	// ArenaCapacity determines fixed memory arena size.
+	// If this param omit defaultArenaCapacity (1MB) will use instead.
+	ArenaCapacity MemorySize
 	// Time after which entry will evict.
-	Expire time.Duration
+	ExpireInterval time.Duration
 	// Time after which entry will flush.
-	Vacuum time.Duration
+	VacuumInterval time.Duration
 	// Collision checks switch.
 	CollisionCheck bool
-	// Maximum cache payload size (it doesn't consider index size).
-	MaxSize MemorySize
 	// Clock implementation.
 	Clock Clock
 
@@ -41,17 +44,17 @@ func (c *Config) Copy() *Config {
 // DefaultConfig makes config with default params.
 func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
 	c := Config{
-		Hasher:  hasher,
-		Buckets: 1024,
-		Expire:  expire,
+		Hasher:         hasher,
+		Buckets:        1,
+		ExpireInterval: expire,
 	}
 	return &c
 }
 
-// DefaultConfigWS makes default config with given max size.
-func DefaultConfigWS(expire time.Duration, hasher hash.Hasher, maxSize MemorySize) *Config {
+// DefaultConfigWS makes default config with given capacity.
+func DefaultConfigWS(expire time.Duration, hasher hash.Hasher, capacity MemorySize) *Config {
 	c := DefaultConfig(expire, hasher)
-	c.MaxSize = maxSize
+	c.Capacity = capacity
 	return c
 }
 

@@ -14,9 +14,9 @@ type arena struct {
 }
 
 // Create and alloc space for new arena.
-func allocArena(id uint32) *arena {
+func allocArena(id uint32, ac MemorySize) *arena {
 	a := &arena{id: id}
-	a.h = cbyte.InitHeader(0, int(ArenaSize))
+	a.h = cbyte.InitHeader(0, int(ac))
 	return a
 }
 

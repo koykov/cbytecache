@@ -129,7 +129,7 @@ func TestCByteCacheVacuum(t *testing.T) {
 	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 	conf.Buckets = 1
 	conf.Clock = clock.NewClock()
-	conf.Vacuum = time.Minute * 2
+	conf.VacuumInterval = time.Minute * 2
 	cache, err := New(conf)
 	if err != nil {
 		t.Fatal(err)

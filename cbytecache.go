@@ -34,19 +34,22 @@ func New(config *Config) (*CByteCache, error) {
 		return nil, ErrBadBuckets
 	}
 	// Check single bucket size.
-	bucketSize := uint64(config.MaxSize) / uint64(config.Buckets)
+	bucketSize := uint64(config.Capacity) / uint64(config.Buckets)
 	if bucketSize > 0 && bucketSize > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
-			config.Buckets, config.MaxSize, MaxBucketSize)
+			config.Buckets, config.Capacity, MaxBucketSize)
 	}
-	if bucketSize > 0 && bucketSize < uint64(ArenaSize) {
-		return nil, fmt.Errorf("bucket size must be greater than arena size %d", ArenaSize)
+	if config.ArenaCapacity == 0 {
+		config.ArenaCapacity = defaultArenaCapacity
+	}
+	if bucketSize > 0 && bucketSize < uint64(config.ArenaCapacity) {
+		return nil, fmt.Errorf("bucket size must be greater than arena size %d", config.ArenaCapacity)
 	}
 	// Check expire/vacuum durations.
-	if config.Expire > 0 && config.Expire < MinExpireInterval {
+	if config.ExpireInterval > 0 && config.ExpireInterval < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
-	if config.Vacuum > 0 && config.Vacuum <= config.Expire {
+	if config.VacuumInterval > 0 && config.VacuumInterval <= config.ExpireInterval {
 		return nil, ErrVacuumDur
 	}
 
@@ -72,24 +75,24 @@ func New(config *Config) (*CByteCache, error) {
 	c.buckets = make([]*bucket, config.Buckets)
 	for i := range c.buckets {
 		c.buckets[i] = &bucket{
-			config:  config,
-			idx:     uint32(i),
-			sizeMax: uint32(bucketSize),
-			buf:     cbytebuf.NewCByteBuf(),
-			index:   make(map[uint64]uint32),
+			config: config,
+			idx:    uint32(i),
+			maxCap: uint32(bucketSize),
+			buf:    cbytebuf.NewCByteBuf(),
+			index:  make(map[uint64]uint32),
 		}
 	}
 
 	// Register expire and vacuum as scheduler jobs.
-	if config.Expire > 0 {
-		config.Clock.Schedule(config.Expire, func() {
+	if config.ExpireInterval > 0 {
+		config.Clock.Schedule(config.ExpireInterval, func() {
 			if err := c.evict(); err != nil && c.l() != nil {
 				c.l().Printf("eviction failed with error %s\n", err.Error())
 			}
 		})
 	}
-	if config.Vacuum > 0 {
-		config.Clock.Schedule(config.Vacuum, func() {
+	if config.VacuumInterval > 0 {
+		config.Clock.Schedule(config.VacuumInterval, func() {
 			if err := c.vacuum(); err != nil && c.l() != nil {
 				c.l().Printf("vacuum failed with error %s\n", err.Error())
 			}
