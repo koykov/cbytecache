@@ -45,7 +45,7 @@ func (c *Config) Copy() *Config {
 func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
 	c := Config{
 		Hasher:         hasher,
-		Buckets:        1,
+		Buckets:        16,
 		ExpireInterval: expire,
 	}
 	return &c

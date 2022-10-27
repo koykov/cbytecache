@@ -141,14 +141,14 @@ func TestCByteCacheVacuum(t *testing.T) {
 			t.Error(err)
 		}
 	}
-	assertSize(t, cache.Size(), CacheSize{268435456, 264222333, 4213123})
+	assertSize(t, cache.Size(), CacheSize{264241152, 264222333, 18819})
 	// Wait for expiration.
 	conf.Clock.Jump(time.Minute)
 	time.Sleep(time.Millisecond * 5)
-	assertSize(t, cache.Size(), CacheSize{268435456, 0, 268435456})
+	assertSize(t, cache.Size(), CacheSize{264241152, 0, 264241152})
 	// Wait for vacuum.
 	conf.Clock.Jump(time.Minute)
 	time.Sleep(time.Millisecond * 5)
-	assertSize(t, cache.Size(), CacheSize{16777216, 0, 16777216})
+	assertSize(t, cache.Size(), CacheSize{1048576, 0, 1048576})
 	conf.Clock.Stop()
 }

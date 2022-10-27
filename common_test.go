@@ -37,6 +37,6 @@ func assertBytes(t testing.TB, a, b []byte) (eq bool) {
 
 func assertSize(t testing.TB, a, b CacheSize) {
 	if !a.Equal(b) {
-		t.Errorf("cache size equal fail:\nneed: %s\ngot:  %s", a, b)
+		t.Errorf("cache size equal fail:\nneed: %s\ngot:  %s", b, a)
 	}
 }

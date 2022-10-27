@@ -27,7 +27,7 @@ type bucket struct {
 	entry []entry
 
 	// Memory arenas.
-	arena, arenaBuf []arena
+	arena, arenaBuf []*arena
 
 	// Index of current arena available to write data.
 	arendIdx uint32
@@ -128,14 +128,14 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 			b.mw().Alloc(b.ac32())
 			arena := allocArena(b.alen(), b.ac())
 			b.size.snap(snapAlloc, b.ac32())
-			b.arena = append(b.arena, *arena)
+			b.arena = append(b.arena, arena)
 			if b.alen() > b.arendIdx {
 				break
 			}
 		}
 	}
 	// Get current arena.
-	arena := &b.arena[b.arendIdx]
+	arena := b.arena[b.arendIdx]
 	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
@@ -168,13 +168,13 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 					b.mw().Alloc(b.ac32())
 					arena := allocArena(b.alen(), b.ac())
 					b.size.snap(snapAlloc, b.ac32())
-					b.arena = append(b.arena, *arena)
+					b.arena = append(b.arena, arena)
 					if b.alen() > b.arendIdx {
 						break
 					}
 				}
 			}
-			arena = &b.arena[b.arendIdx]
+			arena = b.arena[b.arendIdx]
 			// Calculate rest of bytes to write.
 			mustWrite = min(rest, b.ac32())
 		}
@@ -236,7 +236,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 		mw.Miss()
 		return "", dst, ErrNotFound
 	}
-	arena := &b.arena[arenaID]
+	arena := b.arena[arenaID]
 
 	arenaRest := b.ac32() - arenaOffset
 	if entry.offset+entry.length < b.ac32() {
@@ -255,7 +255,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 				mw.Corrupt()
 				return "", dst, ErrEntryCorrupt
 			}
-			arena = &b.arena[arenaID]
+			arena = b.arena[arenaID]
 			arenaOffset = 0
 			arenaRest = min(rest, b.ac32())
 		}
