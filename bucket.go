@@ -27,7 +27,7 @@ type bucket struct {
 	entry []entry
 
 	// Memory arenas.
-	arena, arenaBuf []*arena
+	arena []*arena
 
 	// Index of current arena available to write data.
 	arendIdx uint32
@@ -423,10 +423,10 @@ func (b *bucket) recycleArena(arenaID uint32) {
 		return
 	}
 
-	b.arenaBuf = append(b.arenaBuf[:0], b.arena[:arenaIdx]...)
-	copy(b.arena, b.arena[arenaIdx:])
+	b.arena = append(b.arena, b.arena[:arenaIdx]...)
+	copy(b.arena, b.arena[arenaIdx:al])
 	b.arendIdx = uint32(al - arenaIdx - 1)
-	b.arena = append(b.arena[:b.arendIdx+1], b.arenaBuf...)
+	b.arena = append(b.arena[:b.arendIdx+1], b.arena[al:]...)
 
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
@@ -503,7 +503,6 @@ func (b *bucket) vacuum() error {
 		b.size.snap(snapRelease, b.ac32())
 	}
 	b.arena = b.arena[:pos]
-	b.arenaBuf = b.arenaBuf[:0]
 
 	return ErrOK
 }
