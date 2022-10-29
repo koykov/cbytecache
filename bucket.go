@@ -570,6 +570,8 @@ func (b *bucket) release() error {
 		}
 	}()
 
+	wg.Wait()
+
 	return ErrOK
 }
 
