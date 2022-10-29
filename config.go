@@ -28,6 +28,9 @@ type Config struct {
 	// Clock implementation.
 	Clock Clock
 
+	ExpireListener Listener
+	EvictListener  Listener
+
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 	// Logger is a logging interface to display verbose messages.
