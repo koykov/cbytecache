@@ -90,7 +90,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 		if b.config.CollisionCheck {
 			// Prepare space in buffer to get potentially collided entry.
 			bl := b.buf.Len()
-			if err = b.buf.GrowDelta(int(e.length)); err != nil {
+			if err = b.buf.GrowLen(bl + int(e.length)); err != nil {
 				return
 			}
 			p = b.buf.Bytes()[:bl] // update p due to possible buffer grow
