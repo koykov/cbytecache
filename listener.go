@@ -1,5 +1,8 @@
 package cbytecache
 
+import "io"
+
 type Listener interface {
-	Listen(key string, body []byte)
+	io.Closer
+	Listen(key string, body []byte) error
 }

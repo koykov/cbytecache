@@ -8,28 +8,28 @@ import (
 
 // Config describes cache properties and behavior.
 type Config struct {
-	// Maximum cache payload size (it doesn't consider index size).
+	// Capacity represents maximum cache payload size (it doesn't consider index size).
 	Capacity MemorySize
-	// Keys hasher helper.
+	// Hasher converts keys to hashes.
 	// Mandatory param.
 	Hasher hash.Hasher
-	// Buckets count. Must be power of two.
+	// Buckets represents buckets (data shards) count. Must be power of two.
 	// Mandatory param.
 	Buckets uint
 	// ArenaCapacity determines fixed memory arena size.
 	// If this param omit defaultArenaCapacity (1MB) will use instead.
 	ArenaCapacity MemorySize
-	// Time after which entry will evict.
+	// ExpireInterval represents time after which entry will evict.
 	ExpireInterval time.Duration
-	// Time after which entry will flush.
+	// VacuumInterval represents time after which entry will flush.
 	VacuumInterval time.Duration
-	// Collision checks switch.
+	// CollisionCheck enables collision checks.
 	CollisionCheck bool
 	// Clock implementation.
 	Clock Clock
 
+	// ExpireListener triggers on every expired item.
 	ExpireListener Listener
-	EvictListener  Listener
 
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
