@@ -8,7 +8,7 @@ import (
 	"github.com/koykov/hash/fnv"
 )
 
-func TestCacheIO(t *testing.T) {
+func TestIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
 		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
 		cache, err := New(conf)
