@@ -29,7 +29,7 @@ func (b *bucket) expireRange(z int) {
 func (b *bucket) expire(e *entry) {
 	b.buf.ResetLen()
 	_ = b.buf.GrowLen(int(e.length))
-	key, body, err := b.getLF(b.buf.Bytes(), e, dummyMetrics)
+	key, body, err := b.getLF(b.buf.Bytes()[:0], e, dummyMetrics)
 	if err != nil {
 		return
 	}
