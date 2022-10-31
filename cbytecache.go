@@ -198,6 +198,9 @@ func (c *CByteCache) Close() error {
 		return err
 	}
 	c.config.Clock.Stop()
+	if l := c.config.ExpireListener; l != nil {
+		return l.Close()
+	}
 	return ErrOK
 }
 
