@@ -357,7 +357,7 @@ func (b *bucket) bulkEvict() error {
 	wg.Add(1)
 	go func() {
 		bal, bao := b.alen(), b.arendIdx
-		b.recycleArena(arenaID)
+		b.recycleArenas(arenaID)
 		aal, aao := b.alen(), b.arendIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
@@ -370,7 +370,7 @@ func (b *bucket) bulkEvict() error {
 	return ErrOK
 }
 
-func (b *bucket) recycleArena(arenaID uint32) {
+func (b *bucket) recycleArenas(arenaID uint32) {
 	var arenaIdx int
 	al := len(b.arena)
 	if al == 0 {
