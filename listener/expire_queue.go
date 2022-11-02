@@ -8,24 +8,32 @@ import (
 	"github.com/koykov/fastconv"
 )
 
+/*
+ * Enqueuer group.
+ */
+
 type Enqueuer interface {
 	io.Closer
 	Enqueue(x interface{}) error
 }
 
-type Queue struct {
+/*
+ * ExpireQueue group.
+ */
+
+type ExpireQueue struct {
 	Enqueuer Enqueuer
 }
 
-func NewQueue(enq Enqueuer) (*Queue, error) {
+func NewQueue(enq Enqueuer) (*ExpireQueue, error) {
 	if enq == nil {
 		return nil, ErrNoEnqueuer
 	}
-	q := Queue{Enqueuer: enq}
+	q := ExpireQueue{Enqueuer: enq}
 	return &q, nil
 }
 
-func (q *Queue) Listen(key string, body []byte) error {
+func (q *ExpireQueue) Listen(key string, body []byte) error {
 	if q.Enqueuer == nil {
 		return ErrNoEnqueuer
 	}
@@ -35,18 +43,22 @@ func (q *Queue) Listen(key string, body []byte) error {
 	return q.Enqueuer.Enqueue(itm)
 }
 
-func (q *Queue) Close() error {
+func (q *ExpireQueue) Close() error {
 	return q.Enqueuer.Close()
 }
 
-type QueueItem []byte
+/*
+ * ExpireQueueItem group.
+ */
 
-func NewItem(len int) QueueItem {
-	itm := make(QueueItem, 0, len)
+type ExpireQueueItem []byte
+
+func NewItem(len int) ExpireQueueItem {
+	itm := make(ExpireQueueItem, 0, len)
 	return itm
 }
 
-func (i *QueueItem) Encode(key string, body []byte) {
+func (i *ExpireQueueItem) Encode(key string, body []byte) {
 	*i = append((*i)[:0], 0)
 	*i = append(*i, 0)
 	binary.LittleEndian.PutUint16(*i, uint16(len(key)))
@@ -54,7 +66,7 @@ func (i *QueueItem) Encode(key string, body []byte) {
 	*i = append(*i, body...)
 }
 
-func (i *QueueItem) Decode() (key string, body []byte) {
+func (i *ExpireQueueItem) Decode() (key string, body []byte) {
 	if len(*i) < 2 {
 		return
 	}
