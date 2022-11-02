@@ -31,6 +31,20 @@ type Config struct {
 	// ExpireListener triggers on every expired item.
 	ExpireListener Listener
 
+	// DumpWriter represents writer for dumps.
+	DumpWriter DumpWriter
+	// DumpInterval indicates how often need dump cache data.
+	DumpInterval time.Duration
+	// DumpWriteWorkers represents count of workers that sends entries to DumpWriter.
+	DumpWriteWorkers uint
+
+	// DumpReader represents dump loader that fills cache with dumped data.
+	DumpReader DumpReader
+	// DumpReadBuffer represents how many items from dump may be processed at once.
+	DumpReadBuffer uint
+	// DumpReadWorkers represents count of workers that processes entries comes from DumpReader.
+	DumpReadWorkers uint
+
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter
 	// Logger is a logging interface to display verbose messages.
