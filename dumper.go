@@ -15,5 +15,5 @@ type DumpWriter interface {
 
 type DumpReader interface {
 	io.Closer
-	Read(chan DumpItem) error
+	Read() (DumpItem, error)
 }
