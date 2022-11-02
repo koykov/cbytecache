@@ -2,7 +2,18 @@ package cbytecache
 
 import "io"
 
-type Dumper interface {
+type DumpItem struct {
+	Key    string
+	body   []byte
+	expire uint32
+}
+
+type DumpWriter interface {
 	io.Closer
-	Dump(key string, body []byte, expire uint32) error
+	Write(item DumpItem) error
+}
+
+type DumpReader interface {
+	io.Closer
+	Read(chan DumpItem) error
 }
