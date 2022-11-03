@@ -10,22 +10,41 @@ import (
 type Config struct {
 	// Capacity represents maximum cache payload size (it doesn't consider index size).
 	Capacity MemorySize
+	// ArenaCapacity determines fixed memory arena size.
+	// If this param omit defaultArenaCapacity (1MB) will use instead.
+	ArenaCapacity MemorySize
+
 	// Hasher converts keys to hashes.
 	// Mandatory param.
 	Hasher hash.Hasher
 	// Buckets represents buckets (data shards) count. Must be power of two.
 	// Mandatory param.
 	Buckets uint
-	// ArenaCapacity determines fixed memory arena size.
-	// If this param omit defaultArenaCapacity (1MB) will use instead.
-	ArenaCapacity MemorySize
+
 	// ExpireInterval represents time after which entry will evict.
 	ExpireInterval time.Duration
+	// ExpireWorkers limits workers count for expire/evict operation.
+	// If this param omit defaultExpireWorkers (16) will use instead.
+	ExpireWorkers uint
+
 	// VacuumInterval represents time after which entry will flush.
 	VacuumInterval time.Duration
+	// VacuumWorkers limits workers count for vacuum operation.
+	// If this param omit defaultVacuumWorkers (16) will use instead.
+	VacuumWorkers uint
+
+	// ResetWorkers limits workers count for reset operation.
+	// If this param omit defaultResetWorkers (16) will use instead.
+	ResetWorkers uint
+	// ReleaseWorkers limits workers count for release operation.
+	// If this param omit defaultReleaseWorkers (16) will use instead.
+	ReleaseWorkers uint
+
 	// CollisionCheck enables collision checks.
 	CollisionCheck bool
+
 	// Clock implementation.
+	// If this param omit nativeClock{} will use instead.
 	Clock Clock
 
 	// ExpireListener triggers on every expired item.
@@ -35,14 +54,16 @@ type Config struct {
 	DumpWriter DumpWriter
 	// DumpInterval indicates how often need dump cache data.
 	DumpInterval time.Duration
-	// DumpWriteWorkers represents count of workers that sends entries to DumpWriter.
+	// DumpWriteWorkers limits workers count that sends entries to DumpWriter.
+	// If this param omit defaultDumpWriteWorkers (16) will use instead.
 	DumpWriteWorkers uint
 
 	// DumpReader represents dump loader that fills cache with dumped data.
 	DumpReader DumpReader
 	// DumpReadBuffer represents how many items from dump may be processed at once.
 	DumpReadBuffer uint
-	// DumpReadWorkers represents count of workers that processes entries comes from DumpReader.
+	// DumpReadWorkers limits workers count that processes entries comes from DumpReader.
+	// If this param omit defaultDumpReadWorkers (16) will use instead.
 	DumpReadWorkers uint
 
 	// Metrics writer handler.

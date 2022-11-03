@@ -446,6 +446,46 @@ func (b *bucket) recycleArenas(arenaID uint32) {
 	}
 }
 
+func (b *bucket) dump() error {
+	if err := b.checkStatus(); err != nil {
+		return err
+	}
+
+	if b.l() != nil {
+		b.l().Printf("bucket #%d: dump write started", b.idx)
+	}
+
+	atomic.StoreUint32(&b.status, bucketStatusService)
+	b.mux.Lock()
+	defer func() {
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: dump write finished", b.idx)
+		}
+		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
+	}()
+
+	el := b.elen()
+	if el == 0 {
+		return ErrOK
+	}
+
+	entry := b.entry
+	now := b.now()
+	_ = entry[el-1]
+	z := sort.Search(int(el), func(i int) bool {
+		return now <= entry[i].expire
+	})
+
+	if z == 0 {
+		return ErrOK
+	}
+
+	// todo send [0..z] entries to dump writer
+
+	return ErrOK
+}
+
 func (b *bucket) reset() error {
 	if err := b.checkStatus(); err != nil {
 		return err

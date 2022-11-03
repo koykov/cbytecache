@@ -23,7 +23,10 @@ const (
 	bucketStatusService = 1
 	bucketStatusCorrupt = 2
 
-	resetWorkers   = 16
-	releaseWorkers = 16
-	evictWorkers   = 16
+	defaultResetWorkers     = 16
+	defaultReleaseWorkers   = 16
+	defaultExpireWorkers    = 16
+	defaultVacuumWorkers    = 16
+	defaultDumpWriteWorkers = 16
+	defaultDumpReadWorkers  = 16
 )

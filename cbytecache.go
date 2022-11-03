@@ -45,10 +45,11 @@ func New(config *Config) (*CByteCache, error) {
 	if bucketSize > 0 && bucketSize < uint64(config.ArenaCapacity) {
 		return nil, fmt.Errorf("bucket size must be greater than arena size %d", config.ArenaCapacity)
 	}
-	// Check expire/vacuum durations.
+	// Check expire/evict duration.
 	if config.ExpireInterval > 0 && config.ExpireInterval < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
+	// Check vacuum duration.
 	if config.VacuumInterval > 0 && config.VacuumInterval <= config.ExpireInterval {
 		return nil, ErrVacuumDur
 	}
@@ -83,20 +84,48 @@ func New(config *Config) (*CByteCache, error) {
 		}
 	}
 
-	// Register expire and vacuum as scheduler jobs.
+	// Register expire/evict schedule job.
 	if config.ExpireInterval > 0 {
+		if config.ExpireWorkers == 0 {
+			config.ExpireWorkers = defaultExpireWorkers
+		}
 		config.Clock.Schedule(config.ExpireInterval, func() {
 			if err := c.evict(); err != nil && c.l() != nil {
 				c.l().Printf("eviction failed with error %s\n", err.Error())
 			}
 		})
 	}
+	// Register vacuum schedule job.
 	if config.VacuumInterval > 0 {
+		if config.VacuumWorkers == 0 {
+			config.VacuumWorkers = defaultVacuumWorkers
+		}
 		config.Clock.Schedule(config.VacuumInterval, func() {
 			if err := c.vacuum(); err != nil && c.l() != nil {
 				c.l().Printf("vacuum failed with error %s\n", err.Error())
 			}
 		})
+	}
+	// Register dump schedule job.
+	if config.DumpInterval > 0 {
+		if config.DumpWriteWorkers == 0 {
+			config.DumpWriteWorkers = defaultDumpWriteWorkers
+		}
+		config.Clock.Schedule(config.DumpInterval, func() {
+			if err := c.dump(); err != nil && c.l() != nil {
+				c.l().Printf("dump write failed with error %s\n", err.Error())
+			}
+		})
+	}
+
+	// Process dumps.
+	if config.DumpReader != nil {
+		if config.DumpReadWorkers == 0 {
+			config.DumpReadWorkers = defaultDumpReadWorkers
+		}
+		if err := c.load(); err != nil && c.l() != nil {
+			c.l().Printf("dump read failed with error %s\n", err.Error())
+		}
 	}
 
 	return c, ErrOK
@@ -181,12 +210,12 @@ func (c *CByteCache) Size() (r CacheSize) {
 
 // Reset performs force eviction of all check entries.
 func (c *CByteCache) Reset() error {
-	return c.bulkExec(resetWorkers, "reset", func(b *bucket) error { return b.reset() })
+	return c.bulkExec(defaultResetWorkers, "reset", func(b *bucket) error { return b.reset() })
 }
 
 // Release releases all cache data.
 func (c *CByteCache) Release() error {
-	return c.bulkExecWS(releaseWorkers, "release", func(b *bucket) error { return b.release() }, cacheStatusActive|cacheStatusClosed)
+	return c.bulkExecWS(defaultReleaseWorkers, "release", func(b *bucket) error { return b.release() }, cacheStatusActive|cacheStatusClosed)
 }
 
 // Close destroys cache and releases all data.
@@ -205,18 +234,30 @@ func (c *CByteCache) Close() error {
 }
 
 func (c *CByteCache) evict() error {
-	return c.bulkExec(evictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
+	return c.bulkExec(c.config.ExpireWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }
 
 func (c *CByteCache) vacuum() error {
-	return c.bulkExec(evictWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
+	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
 }
 
-func (c *CByteCache) bulkExec(workers int, op string, fn func(*bucket) error) error {
+func (c *CByteCache) dump() error {
+	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.dump() }); err != nil {
+		return err
+	}
+	return c.config.DumpWriter.Close()
+}
+
+func (c *CByteCache) load() error {
+	// todo implement me
+	return nil
+}
+
+func (c *CByteCache) bulkExec(workers uint, op string, fn func(*bucket) error) error {
 	return c.bulkExecWS(workers, op, fn, cacheStatusActive)
 }
 
-func (c *CByteCache) bulkExecWS(workers int, op string, fn func(*bucket) error, allow uint32) error {
+func (c *CByteCache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allow uint32) error {
 	if err := c.checkCache(allow); err != nil {
 		return err
 	}
