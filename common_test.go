@@ -28,6 +28,13 @@ func getEntryBody(i int) []byte {
 	return dataPool[i%dpLen]
 }
 
+func assertString(t testing.TB, a, b string) (eq bool) {
+	if eq = a == b; !eq {
+		t.Errorf("string equal fail:\nneed: %s\ngot:  %s", a, b)
+	}
+	return
+}
+
 func assertBytes(t testing.TB, a, b []byte) (eq bool) {
 	if eq = bytes.Equal(a, b); !eq {
 		t.Errorf("bytes equal fail:\nneed: %s\ngot:  %s", a, b)

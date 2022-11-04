@@ -1,51 +1,31 @@
 package dumper
 
 import (
-	"errors"
-	"io"
-
 	"github.com/koykov/cbytecache"
 )
 
-/*
- * Enqueuer group.
- */
-
-type Enqueuer interface {
-	io.Closer
-	Enqueue(x interface{}) error
-}
-
-/*
- * DumpQueue group.
- */
-
 type DumpQueue struct {
-	Enqueuer Enqueuer
+	Enqueuer cbytecache.Enqueuer
 }
 
-func NewQueue(enq Enqueuer) (*DumpQueue, error) {
+func NewQueue(enq cbytecache.Enqueuer) (*DumpQueue, error) {
 	if enq == nil {
-		return nil, ErrNoEnqueuer
+		return nil, cbytecache.ErrNoEnqueuer
 	}
 	q := DumpQueue{Enqueuer: enq}
 	return &q, nil
 }
 
-func (q *DumpQueue) Write(item cbytecache.DumpItem) error {
+func (q *DumpQueue) Write(entry cbytecache.Entry) error {
 	if q.Enqueuer == nil {
-		return ErrNoEnqueuer
+		return cbytecache.ErrNoEnqueuer
 	}
 
-	return q.Enqueuer.Enqueue(item)
+	return q.Enqueuer.Enqueue(entry)
 }
 
 func (q *DumpQueue) Close() error {
 	return q.Enqueuer.Close()
 }
 
-var (
-	ErrNoEnqueuer = errors.New("no enqueuer provided")
-
-	_ = NewQueue
-)
+var _ = NewQueue

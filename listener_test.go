@@ -16,7 +16,8 @@ type countListener struct {
 	k, n, b, c uint32
 }
 
-func (l *countListener) Listen(key string, body []byte) error {
+func (l *countListener) Listen(entry Entry) error {
+	key, body := entry.Key, entry.Body
 	if len(key) < 3 || key[:3] != "key" {
 		atomic.AddUint32(&l.k, 1)
 		return fmt.Errorf("corrupted key: %s", key)

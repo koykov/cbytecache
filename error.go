@@ -25,4 +25,5 @@ var (
 	ErrBucketService  = errors.New("cache bucket is under maintenance")
 	ErrBucketCorrupt  = errors.New("cache bucket is corrupted")
 	ErrNoSpace        = errors.New("no space available")
+	ErrNoEnqueuer     = errors.New("no enqueuer provided")
 )

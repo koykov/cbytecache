@@ -33,5 +33,5 @@ func (b *bucket) expire(e *entry) {
 	if err != nil {
 		return
 	}
-	_ = b.config.ExpireListener.Listen(key, body)
+	_ = b.config.ExpireListener.Listen(Entry{Key: key, Body: body})
 }

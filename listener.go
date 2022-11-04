@@ -4,5 +4,5 @@ import "io"
 
 type Listener interface {
 	io.Closer
-	Listen(key string, body []byte) error
+	Listen(entry Entry) error
 }
