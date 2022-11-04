@@ -20,7 +20,6 @@ func (q *ExpireQueue) Listen(entry cbytecache.Entry) error {
 	if q.Enqueuer == nil {
 		return cbytecache.ErrNoEnqueuer
 	}
-
 	cpy := entry.Copy()
 	return q.Enqueuer.Enqueue(cpy)
 }

@@ -20,8 +20,8 @@ func (q *DumpQueue) Write(entry cbytecache.Entry) error {
 	if q.Enqueuer == nil {
 		return cbytecache.ErrNoEnqueuer
 	}
-
-	return q.Enqueuer.Enqueue(entry)
+	cpy := entry.Copy()
+	return q.Enqueuer.Enqueue(cpy)
 }
 
 func (q *DumpQueue) Close() error {

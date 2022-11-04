@@ -242,7 +242,7 @@ func (c *Cache) vacuum() error {
 }
 
 func (c *Cache) dump() error {
-	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.dump() }); err != nil {
+	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.bulkDump() }); err != nil {
 		return err
 	}
 	return c.config.DumpWriter.Close()
