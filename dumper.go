@@ -4,7 +4,7 @@ import "io"
 
 type DumpWriter interface {
 	io.Closer
-	Write(item Entry) error
+	Write(entry Entry) error
 }
 
 type DumpReader interface {
