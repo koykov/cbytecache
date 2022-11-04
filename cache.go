@@ -8,8 +8,8 @@ import (
 	"github.com/koykov/cbytebuf"
 )
 
-// CByteCache is a cache implementation based on cbyte package.
-type CByteCache struct {
+// Cache is a byte cache implementation based on cbyte package.
+type Cache struct {
 	config  *Config
 	status  uint32
 	buckets []*bucket
@@ -19,7 +19,7 @@ type CByteCache struct {
 }
 
 // New makes cache instance according config.
-func New(config *Config) (*CByteCache, error) {
+func New(config *Config) (*Cache, error) {
 	if config == nil {
 		return nil, ErrBadConfig
 	}
@@ -66,7 +66,7 @@ func New(config *Config) (*CByteCache, error) {
 	}
 
 	// Init the cache and buckets.
-	c := &CByteCache{
+	c := &Cache{
 		config: config,
 		status: cacheStatusActive,
 		mask:   uint64(config.Buckets - 1),
@@ -132,17 +132,17 @@ func New(config *Config) (*CByteCache, error) {
 }
 
 // Set sets entry bytes to the cache.
-func (c *CByteCache) Set(key string, data []byte) error {
+func (c *Cache) Set(key string, data []byte) error {
 	return c.set(key, data)
 }
 
 // SetMarshallerTo sets entry like protobuf object to the cache.
-func (c *CByteCache) SetMarshallerTo(key string, m MarshallerTo) error {
+func (c *Cache) SetMarshallerTo(key string, m MarshallerTo) error {
 	return c.setm(key, m)
 }
 
 // Internal bytes setter.
-func (c *CByteCache) set(key string, data []byte) error {
+func (c *Cache) set(key string, data []byte) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
@@ -162,7 +162,7 @@ func (c *CByteCache) set(key string, data []byte) error {
 }
 
 // Internal marshaller object setter.
-func (c *CByteCache) setm(key string, m MarshallerTo) error {
+func (c *Cache) setm(key string, m MarshallerTo) error {
 	if len(key) > MaxKeySize {
 		return ErrKeyTooBig
 	}
@@ -182,12 +182,12 @@ func (c *CByteCache) setm(key string, m MarshallerTo) error {
 }
 
 // Get gets entry bytes by key.
-func (c *CByteCache) Get(key string) ([]byte, error) {
+func (c *Cache) Get(key string) ([]byte, error) {
 	return c.GetTo(nil, key)
 }
 
 // GetTo gets entry bytes to dst.
-func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
+func (c *Cache) GetTo(dst []byte, key string) ([]byte, error) {
 	if err := c.checkCache(cacheStatusActive); err != nil {
 		return dst, err
 	}
@@ -197,7 +197,7 @@ func (c *CByteCache) GetTo(dst []byte, key string) ([]byte, error) {
 }
 
 // Size returns cache size snapshot. Contains total, used and free sizes.
-func (c *CByteCache) Size() (r CacheSize) {
+func (c *Cache) Size() (r CacheSize) {
 	_ = c.buckets[len(c.buckets)-1]
 	for i := 0; i < len(c.buckets); i++ {
 		t, u, f := c.buckets[i].size.snapshot()
@@ -209,19 +209,19 @@ func (c *CByteCache) Size() (r CacheSize) {
 }
 
 // Reset performs force eviction of all check entries.
-func (c *CByteCache) Reset() error {
+func (c *Cache) Reset() error {
 	return c.bulkExec(defaultResetWorkers, "reset", func(b *bucket) error { return b.reset() })
 }
 
 // Release releases all cache data.
-func (c *CByteCache) Release() error {
+func (c *Cache) Release() error {
 	return c.bulkExecWS(defaultReleaseWorkers, "release", func(b *bucket) error { return b.release() }, cacheStatusActive|cacheStatusClosed)
 }
 
 // Close destroys cache and releases all data.
 //
 // You cannot use cache after that.
-func (c *CByteCache) Close() error {
+func (c *Cache) Close() error {
 	atomic.StoreUint32(&c.status, cacheStatusClosed)
 	if err := c.Release(); err != nil {
 		return err
@@ -233,31 +233,31 @@ func (c *CByteCache) Close() error {
 	return ErrOK
 }
 
-func (c *CByteCache) evict() error {
+func (c *Cache) evict() error {
 	return c.bulkExec(c.config.ExpireWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }
 
-func (c *CByteCache) vacuum() error {
+func (c *Cache) vacuum() error {
 	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
 }
 
-func (c *CByteCache) dump() error {
+func (c *Cache) dump() error {
 	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.dump() }); err != nil {
 		return err
 	}
 	return c.config.DumpWriter.Close()
 }
 
-func (c *CByteCache) load() error {
+func (c *Cache) load() error {
 	// todo implement me
 	return nil
 }
 
-func (c *CByteCache) bulkExec(workers uint, op string, fn func(*bucket) error) error {
+func (c *Cache) bulkExec(workers uint, op string, fn func(*bucket) error) error {
 	return c.bulkExecWS(workers, op, fn, cacheStatusActive)
 }
 
-func (c *CByteCache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allow uint32) error {
+func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allow uint32) error {
 	if err := c.checkCache(allow); err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ func (c *CByteCache) bulkExecWS(workers uint, op string, fn func(*bucket) error,
 	return ErrOK
 }
 
-func (c *CByteCache) checkCache(allow uint32) error {
+func (c *Cache) checkCache(allow uint32) error {
 	if status := atomic.LoadUint32(&c.status); status&allow == 0 {
 		if status == cacheStatusNil {
 			return ErrBadCache
@@ -308,6 +308,6 @@ func (c *CByteCache) checkCache(allow uint32) error {
 	return nil
 }
 
-func (c *CByteCache) l() Logger {
+func (c *Cache) l() Logger {
 	return c.config.Logger
 }

@@ -47,7 +47,7 @@ func TestCollision(t *testing.T) {
 		{"collision20", "MnQy7NqvfYZpUhJ8fRlHhIpobo", "STwoLGOiYG1szbz75K8vq"},
 	}
 
-	testC7n := func(t *testing.T, cache *CByteCache, st *stage) {
+	testC7n := func(t *testing.T, cache *Cache, st *stage) {
 		_ = cache.Set(st.k0, dataPool[0])
 		err := cache.Set(st.k1, dataPool[1])
 		if err != ErrEntryCollision {
