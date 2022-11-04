@@ -2,6 +2,7 @@ package cbytecache
 
 import (
 	"encoding/binary"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -40,6 +41,23 @@ func TestDump(t *testing.T) {
 		if w.len() != 2783 {
 			t.Errorf("dump size mismatch: need %d got %d", 2783, w.len())
 		}
+	})
+
+	t.Run("read", func(t *testing.T) {
+		var r testDumpReader
+		conf := DefaultConfig(time.Hour, &fnv.Hasher{})
+		// Writer isn't thread-safe, so use only one bucket and writer worker.
+		conf.Buckets = 1
+		conf.DumpReader = &r
+		conf.DumpReadWorkers = 4
+		conf.Clock = clock.NewClock()
+		cache, err := New(conf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_ = cache
+		// todo check contents of keys [key0...key9]
 	})
 }
 
@@ -87,4 +105,61 @@ func (w *testDumpWriter) Close() error {
 
 func (w *testDumpWriter) len() int {
 	return w.n
+}
+
+type testDumpReader struct {
+	f   *os.File
+	buf []byte
+}
+
+func (r *testDumpReader) Read() (e Entry, err error) {
+	if r.f == nil {
+		if r.f, err = os.Open("testdata/example.bin"); err != nil {
+			return
+		}
+	}
+	r.buf = r.buf[:0]
+	off := 0
+	r.buf = bytealg.GrowDelta(r.buf, 2)
+	if _, err = io.ReadAtLeast(r.f, r.buf, 2); err != nil {
+		return
+	}
+	kl := binary.LittleEndian.Uint16(r.buf)
+	off += 2
+	r.buf = bytealg.GrowDelta(r.buf, int(kl))
+	if _, err = io.ReadAtLeast(r.f, r.buf[off:], int(kl)); err != nil {
+		return
+	}
+	e.Key = fastconv.B2S(r.buf[off:])
+	off += int(kl)
+
+	r.buf = bytealg.GrowDelta(r.buf, 4)
+	if _, err = io.ReadAtLeast(r.f, r.buf[off:], 4); err != nil {
+		return
+	}
+	bl := binary.LittleEndian.Uint32(r.buf[off:])
+	off += 4
+	r.buf = bytealg.GrowDelta(r.buf, int(bl))
+	if _, err = io.ReadAtLeast(r.f, r.buf[off:], int(bl)); err != nil {
+		return
+	}
+	e.Body = r.buf[off:]
+	off += int(bl)
+
+	r.buf = bytealg.GrowDelta(r.buf, 4)
+	if _, err = io.ReadAtLeast(r.f, r.buf[off:], 4); err != nil {
+		return
+	}
+	e.Expire = binary.LittleEndian.Uint32(r.buf[off:])
+	return
+}
+
+func (r *testDumpReader) Close() error {
+	if r.f != nil {
+		if err := r.f.Close(); err != nil {
+			return err
+		}
+		r.f = nil
+	}
+	return nil
 }

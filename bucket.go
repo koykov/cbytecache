@@ -40,7 +40,7 @@ func (b *bucket) set(key string, h uint64, p []byte) (err error) {
 	}
 
 	b.mux.Lock()
-	err = b.setLF(key, h, p)
+	err = b.setLF(key, h, p, 0)
 	b.mux.Unlock()
 	return
 }
@@ -58,12 +58,12 @@ func (b *bucket) setm(key string, h uint64, m MarshallerTo) (err error) {
 	if _, err = b.buf.WriteMarshallerTo(m); err != nil {
 		return
 	}
-	err = b.setLF(key, h, b.buf.Bytes())
+	err = b.setLF(key, h, b.buf.Bytes(), 0)
 	return
 }
 
 // Internal setter. It works in lock-free mode thus need to guarantee thread-safety outside.
-func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
+func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error) {
 	var (
 		idx, pl uint32
 
@@ -181,13 +181,17 @@ func (b *bucket) setLF(key string, h uint64, p []byte) (err error) {
 	}
 
 	// Create and register new entry.
-	b.entry = append(b.entry, entry{
+	entry := entry{
 		hash:   h,
 		offset: arenaOffset,
 		length: pl,
-		expire: b.now() + uint32(b.config.ExpireInterval)/1e9,
+		expire: expire,
 		aidptr: startArena.idPtr(),
-	})
+	}
+	if entry.expire > 0 {
+		entry.expire = b.now() + uint32(b.config.ExpireInterval)/1e9
+	}
+	b.entry = append(b.entry, entry)
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)

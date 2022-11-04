@@ -2,6 +2,7 @@ package cbytecache
 
 import (
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -122,6 +123,9 @@ func New(config *Config) (*Cache, error) {
 	if config.DumpReader != nil {
 		if config.DumpReadWorkers == 0 {
 			config.DumpReadWorkers = defaultDumpReadWorkers
+		}
+		if config.DumpReadBuffer == 0 {
+			config.DumpReadBuffer = config.DumpReadWorkers
 		}
 		if err := c.load(); err != nil && c.l() != nil {
 			c.l().Printf("dump read failed with error %s\n", err.Error())
@@ -249,8 +253,40 @@ func (c *Cache) dump() error {
 }
 
 func (c *Cache) load() error {
-	// todo implement me
-	return nil
+	stream := make(chan Entry, c.config.DumpReadBuffer)
+	var wg sync.WaitGroup
+	for i := uint(0); i < c.config.DumpReadWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case entry, ok := <-stream:
+					if !ok {
+						return
+					}
+					h := c.config.Hasher.Sum64(entry.Key)
+					bucket := c.buckets[h&c.mask]
+					bucket.mux.Lock()
+					_ = bucket.setLF(entry.Key, h, entry.Body, entry.Expire)
+					bucket.mux.Unlock()
+				}
+			}
+		}()
+	}
+
+	for {
+		entry, err := c.config.DumpReader.Read()
+		if err == io.EOF {
+			close(stream)
+			break
+		}
+		stream <- entry.Copy()
+	}
+
+	wg.Wait()
+
+	return c.config.DumpReader.Close()
 }
 
 func (c *Cache) bulkExec(workers uint, op string, fn func(*bucket) error) error {
