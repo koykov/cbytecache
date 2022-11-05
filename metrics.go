@@ -12,4 +12,6 @@ type MetricsWriter interface {
 	Corrupt()
 	Collision()
 	NoSpace()
+	Dump()
+	Load()
 }

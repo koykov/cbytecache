@@ -13,5 +13,7 @@ func (DummyMetrics) Expire()          {}
 func (DummyMetrics) Corrupt()         {}
 func (DummyMetrics) Collision()       {}
 func (DummyMetrics) NoSpace()         {}
+func (DummyMetrics) Dump()            {}
+func (DummyMetrics) Load()            {}
 
 var dummyMetrics = DummyMetrics{}

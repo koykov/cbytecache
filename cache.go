@@ -270,6 +270,7 @@ func (c *Cache) load() error {
 					bucket.mux.Lock()
 					_ = bucket.setLF(entry.Key, h, entry.Body, entry.Expire)
 					bucket.mux.Unlock()
+					c.mw().Load()
 				}
 			}
 		}()
@@ -342,6 +343,10 @@ func (c *Cache) checkCache(allow uint32) error {
 		}
 	}
 	return nil
+}
+
+func (c *Cache) mw() MetricsWriter {
+	return c.config.MetricsWriter
 }
 
 func (c *Cache) l() Logger {

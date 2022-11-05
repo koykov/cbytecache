@@ -74,4 +74,5 @@ func (b *bucket) dump(e *entry) {
 		return
 	}
 	_ = b.config.DumpWriter.Write(Entry{Key: key, Body: body})
+	b.mw().Dump()
 }
