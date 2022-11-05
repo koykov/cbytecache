@@ -14,7 +14,7 @@ import (
 	"github.com/koykov/hash/fnv"
 )
 
-func TestDump(t *testing.T) {
+func TestDumper(t *testing.T) {
 	t.Run("write", func(t *testing.T) {
 		var w testDumpWriter
 		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
