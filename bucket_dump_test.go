@@ -1,6 +1,7 @@
 package cbytecache
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
 	"os"
@@ -56,8 +57,18 @@ func TestDump(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_ = cache
-		// todo check contents of keys [key0...key9]
+		var key []byte
+		for i := 0; i < 10; i++ {
+			key = makeKey(key, i)
+			body, err := cache.Get(fastconv.B2S(key))
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			if expect := getEntryBody(i); !bytes.Equal(body, expect) {
+				t.Errorf("body mismatch for key '%s':\nneed '%s'\ngot:  '%s'", string(key), string(expect), string(body))
+			}
+		}
 	})
 }
 
