@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/koykov/cbytebuf"
 	"github.com/koykov/fastconv"
@@ -67,10 +68,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	var (
 		idx, pl uint32
 
-		e  *entry
-		ok bool
+		e   *entry
+		ok  bool
+		stm = b.nowT()
 	)
-
 	defer b.buf.ResetLen()
 
 	// Try to get already existed entry.
@@ -195,7 +196,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)
-	b.mw().Set(pl)
+	b.mw().Set(pl, b.nowT().Sub(stm))
 	return ErrOK
 }
 
@@ -210,6 +211,7 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	var (
 		idx uint32
 		ok  bool
+		stm = b.nowT()
 	)
 	if idx, ok = b.index[h]; !ok {
 		b.mw().Miss()
@@ -227,6 +229,9 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 
 	var err error
 	_, dst, err = b.getLF(dst, entry, b.mw())
+	if err == nil {
+		b.mw().Hit(b.nowT().Sub(stm))
+	}
 	return dst, err
 }
 
@@ -264,7 +269,6 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 			arenaRest = min(rest, b.ac32())
 		}
 	}
-	mw.Hit()
 
 	if len(dst) < keySizeBytes {
 		return "", dst, ErrEntryCorrupt
@@ -532,6 +536,10 @@ func (b *bucket) checkStatus() error {
 
 func (b *bucket) now() uint32 {
 	return uint32(b.config.Clock.Now().Unix())
+}
+
+func (b *bucket) nowT() time.Time {
+	return b.config.Clock.Now()
 }
 
 func (b *bucket) alen() uint32 {
