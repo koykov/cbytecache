@@ -188,7 +188,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		expire: expire,
 		aidptr: startArena.idPtr(),
 	}
-	if entry.expire > 0 {
+	if entry.expire == 0 {
 		entry.expire = b.now() + uint32(b.config.ExpireInterval)/1e9
 	}
 	b.entry = append(b.entry, entry)
