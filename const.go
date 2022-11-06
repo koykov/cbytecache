@@ -11,7 +11,7 @@ const (
 
 	MinExpireInterval = time.Second
 
-	defaultArenaCapacity = Megabyte
+	defaultArenaCapacity = Kilobyte * 16
 
 	keySizeBytes = 2
 

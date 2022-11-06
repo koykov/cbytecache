@@ -11,10 +11,10 @@ type Config struct {
 	// Capacity represents maximum cache payload size (it doesn't consider index size).
 	Capacity MemorySize
 	// ArenaCapacity determines fixed memory arena size.
-	// If this param omit defaultArenaCapacity (1MB) will use instead.
+	// If this param omit defaultArenaCapacity (16KB) will use instead.
 	ArenaCapacity MemorySize
 
-	// Hasher converts keys to hashes.
+	// Hasher calculates uint64 hash of entries keys.
 	// Mandatory param.
 	Hasher hash.Hasher
 	// Buckets represents buckets (data shards) count. Must be power of two.
