@@ -31,7 +31,7 @@ type bucket struct {
 	arena []*arena
 
 	// Index of current arena available to write data.
-	arendIdx uint32
+	arenaIdx uint32
 }
 
 // Set p to bucket by h hash.
@@ -117,7 +117,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	}
 
 	// Check if more space needed before write.
-	if b.arendIdx >= b.alen() {
+	if b.arenaIdx >= b.alen() {
 		if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 			if b.l() != nil {
 				b.l().Printf("bucket %d: no space on grow", b.idx)
@@ -130,13 +130,13 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			arena := allocArena(b.alen(), b.ac())
 			b.size.snap(snapAlloc, b.ac32())
 			b.arena = append(b.arena, arena)
-			if b.alen() > b.arendIdx {
+			if b.alen() > b.arenaIdx {
 				break
 			}
 		}
 	}
 	// Get current arena.
-	arena := b.arena[b.arendIdx]
+	arena := b.arena[b.arenaIdx]
 	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
@@ -155,9 +155,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				break
 			}
 			// Switch to the next arena.
-			b.arendIdx++
+			b.arenaIdx++
 			// Alloc new arena if needed.
-			if b.arendIdx >= b.alen() {
+			if b.arenaIdx >= b.alen() {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
@@ -170,12 +170,12 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					arena := allocArena(b.alen(), b.ac())
 					b.size.snap(snapAlloc, b.ac32())
 					b.arena = append(b.arena, arena)
-					if b.alen() > b.arendIdx {
+					if b.alen() > b.arenaIdx {
 						break
 					}
 				}
 			}
-			arena = b.arena[b.arendIdx]
+			arena = b.arena[b.arenaIdx]
 			// Calculate rest of bytes to write.
 			mustWrite = min(rest, b.ac32())
 		}
@@ -364,9 +364,9 @@ func (b *bucket) bulkEvict() error {
 	// Recycle arenas.
 	wg.Add(1)
 	go func() {
-		bal, bao := b.alen(), b.arendIdx
+		bal, bao := b.alen(), b.arenaIdx
 		b.recycleArenas(arenaID)
-		aal, aao := b.alen(), b.arendIdx
+		aal, aao := b.alen(), b.arenaIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
 		}
@@ -442,13 +442,13 @@ func (b *bucket) recycleArenas(arenaID uint32) {
 
 	b.arena = append(b.arena, b.arena[:arenaIdx]...)
 	copy(b.arena, b.arena[arenaIdx:al])
-	b.arendIdx = uint32(al - arenaIdx - 1)
-	b.arena = append(b.arena[:b.arendIdx+1], b.arena[al:]...)
+	b.arenaIdx = uint32(al - arenaIdx - 1)
+	b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
 
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {
 		b.arena[i].id = uint32(i)
-		if uint32(i) > b.arendIdx {
+		if uint32(i) > b.arenaIdx {
 			b.arena[i].h.Len = 0
 		}
 	}
@@ -467,7 +467,7 @@ func (b *bucket) reset() error {
 	}()
 
 	b.buf.ResetLen()
-	b.arendIdx = 0
+	b.arenaIdx = 0
 	b.evictRange(len(b.entry))
 	b.entry = b.entry[:0]
 
@@ -487,7 +487,7 @@ func (b *bucket) release() error {
 	}()
 
 	b.buf.Release()
-	b.arendIdx = 0
+	b.arenaIdx = 0
 
 	var wg sync.WaitGroup
 

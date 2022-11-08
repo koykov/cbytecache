@@ -21,12 +21,12 @@ func (b *bucket) vacuum() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	for i := b.arendIdx + 1; i < b.alen(); i++ {
+	for i := b.arenaIdx + 1; i < b.alen(); i++ {
 		b.arena[i].release()
 		b.mw().Release(b.ac32())
 		b.size.snap(snapRelease, b.ac32())
 	}
-	b.arena = b.arena[:b.arendIdx+1]
+	b.arena = b.arena[:b.arenaIdx+1]
 
 	return ErrOK
 }
