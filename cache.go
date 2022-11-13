@@ -46,12 +46,16 @@ func New(config *Config) (*Cache, error) {
 	if bucketSize > 0 && bucketSize < uint64(config.ArenaCapacity) {
 		return nil, fmt.Errorf("bucket size must be greater than arena size %d", config.ArenaCapacity)
 	}
-	// Check expire/evict duration.
-	if config.ExpireInterval > 0 && config.ExpireInterval < MinExpireInterval {
+	// Check expire interval.
+	if config.ExpireInterval < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
-	// Check vacuum duration.
-	if config.VacuumInterval > 0 && config.VacuumInterval <= config.ExpireInterval {
+	// Check evict interval.
+	if config.EvictInterval == 0 {
+		config.EvictInterval = config.ExpireInterval
+	}
+	// Check vacuum interval.
+	if config.VacuumInterval > 0 && config.VacuumInterval <= config.EvictInterval {
 		return nil, ErrVacuumDur
 	}
 
@@ -85,12 +89,12 @@ func New(config *Config) (*Cache, error) {
 		}
 	}
 
-	// Register expire/evict schedule job.
-	if config.ExpireInterval > 0 {
-		if config.ExpireWorkers == 0 {
-			config.ExpireWorkers = defaultExpireWorkers
+	// Register evict schedule job.
+	if config.EvictInterval > 0 {
+		if config.EvictWorkers == 0 {
+			config.EvictWorkers = defaultEvictWorkers
 		}
-		config.Clock.Schedule(config.ExpireInterval, func() {
+		config.Clock.Schedule(config.EvictInterval, func() {
 			if err := c.evict(); err != nil && c.l() != nil {
 				c.l().Printf("eviction failed with error %s\n", err.Error())
 			}
@@ -238,7 +242,7 @@ func (c *Cache) Close() error {
 }
 
 func (c *Cache) evict() error {
-	return c.bulkExec(c.config.ExpireWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
+	return c.bulkExec(c.config.EvictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }
 
 func (c *Cache) vacuum() error {

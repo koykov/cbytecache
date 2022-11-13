@@ -25,7 +25,7 @@ const (
 
 	defaultResetWorkers     = 16
 	defaultReleaseWorkers   = 16
-	defaultExpireWorkers    = 16
+	defaultEvictWorkers     = 16
 	defaultVacuumWorkers    = 16
 	defaultDumpWriteWorkers = 16
 	defaultDumpReadWorkers  = 16

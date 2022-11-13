@@ -440,10 +440,19 @@ func (b *bucket) recycleArenas(arenaID uint32) {
 		return
 	}
 
-	b.arena = append(b.arena, b.arena[:arenaIdx]...)
-	copy(b.arena, b.arena[arenaIdx:al])
+	// // append recycling
+	// todo candidate to remove
+	// b.arena = append(b.arena, b.arena[:arenaIdx]...)
+	// copy(b.arena, b.arena[arenaIdx:al])
+	// b.arenaIdx = uint32(al - arenaIdx - 1)
+	// b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
+
+	// swap recycling
+	_ = b.arena[al-1]
+	for i := arenaIdx; i < al; i++ {
+		b.arena[i-arenaIdx], b.arena[i] = b.arena[i], b.arena[i-arenaIdx]
+	}
 	b.arenaIdx = uint32(al - arenaIdx - 1)
-	b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
 
 	_ = b.arena[al-1]
 	for i := 0; i < al; i++ {

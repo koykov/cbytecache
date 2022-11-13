@@ -20,14 +20,19 @@ type Config struct {
 	// Buckets represents buckets (data shards) count. Must be power of two.
 	// Mandatory param.
 	Buckets uint
-
-	// ExpireInterval represents time after which entry will evict.
+	// ExpireInterval represents entry lifetime period.
+	// After this period entry may be evicted in any time. Reading of entry after that period will fail as expired.
+	// Mandatory param.
 	ExpireInterval time.Duration
-	// ExpireWorkers limits workers count for expire/evict operation.
-	// If this param omit defaultExpireWorkers (16) will use instead.
-	ExpireWorkers uint
 
-	// VacuumInterval represents time after which entry will flush.
+	// EvictInterval represents period between eviction operations.
+	// If this param omit ExpireInterval will use instead.
+	EvictInterval time.Duration
+	// EvictWorkers limits workers count for evict operation.
+	// If this param omit defaultEvictWorkers (16) will use instead.
+	EvictWorkers uint
+
+	// VacuumInterval represents period between vacuum operations.
 	VacuumInterval time.Duration
 	// VacuumWorkers limits workers count for vacuum operation.
 	// If this param omit defaultVacuumWorkers (16) will use instead.
