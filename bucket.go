@@ -30,6 +30,8 @@ type bucket struct {
 	// Memory arenas.
 	arena []*arena
 
+	lastEvc, lastVac time.Time
+
 	// Index of current arena available to write data.
 	arenaIdx uint32
 }
@@ -327,6 +329,18 @@ func (b *bucket) bulkEvict() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
+	return b.bulkEvictLF()
+}
+
+func (b *bucket) bulkEvictLF() error {
+	if b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
+		return ErrOK
+	}
+
+	defer func() {
+		b.lastEvc = b.nowT()
+	}()
+
 	el := b.elen()
 	if el == 0 {
 		return ErrOK
@@ -368,7 +382,7 @@ func (b *bucket) bulkEvict() error {
 		b.recycleArenas(arenaID)
 		aal, aao := b.alen(), b.arenaIdx
 		if b.l() != nil {
-			b.l().Printf("bucket #%d: arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
+			b.l().Printf("bucket #%d: evict arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
 		}
 		wg.Done()
 	}()
@@ -448,6 +462,7 @@ func (b *bucket) recycleArenas(arenaID uint32) {
 	// b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
 
 	// swap recycling
+	// todo candidate to remove
 	_ = b.arena[al-1]
 	for i := arenaIdx; i < al; i++ {
 		b.arena[i-arenaIdx], b.arena[i] = b.arena[i], b.arena[i-arenaIdx]
