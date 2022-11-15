@@ -27,6 +27,11 @@ func (a *arena) idPtr() uintptr {
 	return uintptr(unsafe.Pointer(&a.id))
 }
 
+// Get raw unsafe pointer of arena.
+func (a *arena) ptr() uintptr {
+	return uintptr(unsafe.Pointer(a))
+}
+
 // Write b to arena.
 //
 // Caution! No bounds check control. External code must guarantee the safety.
@@ -65,6 +70,13 @@ func (a arena) rest() uint32 {
 		return 0
 	}
 	return uint32(delta)
+}
+
+// Reset arena data.
+//
+// Allocated memory will not release and become available to rewrite.
+func (a *arena) reset() {
+	a.h.Len = 0
 }
 
 // Release memory arena.
