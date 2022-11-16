@@ -30,6 +30,12 @@ type bucket struct {
 	// Memory arenas.
 	arena []*arena
 
+	head *arena
+	act  *arena
+	tail *arena
+	al   uint32
+	ac   uint32
+
 	lastEvc, lastVac time.Time
 
 	// Index of current arena available to write data.
@@ -118,27 +124,34 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		return
 	}
 
-	// Check if more space needed before write.
-	if b.arenaIdx >= b.alen() {
-		if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
-			if b.l() != nil {
-				b.l().Printf("bucket %d: no space on grow", b.idx)
-			}
-			b.mw().NoSpace()
-			return ErrNoSpace
-		}
-		for {
-			b.mw().Alloc(b.ac32())
-			arena := allocArena(b.alen(), b.ac())
-			b.size.snap(snapAlloc, b.ac32())
-			b.arena = append(b.arena, arena)
-			if b.alen() > b.arenaIdx {
-				break
-			}
-		}
+	// Init alloc.
+	if b.head == nil && b.act == nil && b.tail == nil {
+		arena := allocArena(atomic.AddUint32(&b.ac, 1), b.as())
+		b.head, b.act, b.tail = arena, arena, arena
+		b.al++
 	}
+	// // Check if more space needed before write.
+	// if b.arenaIdx >= b.alen() {
+	// 	if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
+	// 		if b.l() != nil {
+	// 			b.l().Printf("bucket %d: no space on grow", b.idx)
+	// 		}
+	// 		b.mw().NoSpace()
+	// 		return ErrNoSpace
+	// 	}
+	// 	for {
+	// 		b.mw().Alloc(b.ac32())
+	// 		arena := allocArena(b.alen(), b.as())
+	// 		b.size.snap(snapAlloc, b.ac32())
+	// 		b.arena = append(b.arena, arena)
+	// 		if b.alen() > b.arenaIdx {
+	// 			break
+	// 		}
+	// 	}
+	// }
 	// Get current arena.
-	arena := b.arena[b.arenaIdx]
+	// arena := b.arena[b.arenaIdx]
+	arena := b.act
 	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
@@ -157,9 +170,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				break
 			}
 			// Switch to the next arena.
-			b.arenaIdx++
+			prev := arena
+			arena = arena.n
 			// Alloc new arena if needed.
-			if b.arenaIdx >= b.alen() {
+			if arena == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
@@ -167,17 +181,19 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					b.mw().NoSpace()
 					return ErrNoSpace
 				}
-				for {
-					b.mw().Alloc(b.ac32())
-					arena := allocArena(b.alen(), b.ac())
-					b.size.snap(snapAlloc, b.ac32())
-					b.arena = append(b.arena, arena)
-					if b.alen() > b.arenaIdx {
-						break
-					}
-				}
+				// for {
+				b.mw().Alloc(b.ac32())
+				arena = allocArena(atomic.AddUint32(&b.ac, 1), b.as())
+				prev.n = arena
+				b.act, b.tail = arena, arena
+				b.size.snap(snapAlloc, b.ac32())
+				// b.arena = append(b.arena, arena)
+				// if b.alen() > b.arenaIdx {
+				// 	break
+				// }
+				// }
 			}
-			arena = b.arena[b.arenaIdx]
+			// arena = b.arena[b.arenaIdx]
 			// Calculate rest of bytes to write.
 			mustWrite = min(rest, b.ac32())
 		}
@@ -189,7 +205,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		offset: arenaOffset,
 		length: pl,
 		expire: expire,
-		aidptr: startArena.idPtr(),
+		// aidptr: startArena.idPtr(),
+		aptr: startArena.ptr(),
 	}
 	if entry.expire == 0 {
 		entry.expire = b.now() + uint32(b.config.ExpireInterval)/1e9
@@ -240,14 +257,14 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []byte, error) {
 	// Get starting arena.
-	arenaID := entry.arenaID()
+	// arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
-	if arenaID >= b.alen() {
-		mw.Miss()
-		return "", dst, ErrNotFound
-	}
-	arena := b.arena[arenaID]
+	// if arenaID >= b.alen() {
+	// 	mw.Miss()
+	// 	return "", dst, ErrNotFound
+	// }
+	arena := entry.arena()
 
 	arenaRest := b.ac32() - arenaOffset
 	if entry.offset+entry.length < b.ac32() {
@@ -261,12 +278,13 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 			if rest -= arenaRest; rest == 0 {
 				break
 			}
-			arenaID++
-			if arenaID >= b.alen() {
+			arena = arena.n
+			// arenaID++
+			if arena == nil {
 				mw.Corrupt()
 				return "", dst, ErrEntryCorrupt
 			}
-			arena = b.arena[arenaID]
+			// arena = b.arena[arenaID]
 			arenaOffset = 0
 			arenaRest = min(rest, b.ac32())
 		}
@@ -358,7 +376,8 @@ func (b *bucket) bulkEvictLF() error {
 	}
 
 	// Last arena ID that with actual entries.
-	arenaID := b.entry[z-1].arenaID()
+	// arenaID := b.entry[z-1].arenaID()
+	lo := b.entry[z-1].arena()
 
 	if b.config.ExpireListener != nil {
 		// Call expire listener for all expired entries.
@@ -379,7 +398,7 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Add(1)
 	go func() {
 		bal, bao := b.alen(), b.arenaIdx
-		b.recycleArenas(arenaID)
+		b.recycleArenas(lo)
 		aal, aao := b.alen(), b.arenaIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
@@ -392,90 +411,91 @@ func (b *bucket) bulkEvictLF() error {
 	return ErrOK
 }
 
-func (b *bucket) recycleArenas(arenaID uint32) {
-	var arenaIdx int
-	al := len(b.arena)
-	if al == 0 {
-		return
-	}
-	if al < 256 {
-		_ = b.arena[al-1]
-		for i := 0; i < al; i++ {
-			if b.arena[i].id == arenaID {
-				arenaIdx = i
-				break
-			}
-		}
-	} else {
-		al8 := al - al%8
-		_ = b.arena[al-1]
-		for i := 0; i < al8; i += 8 {
-			if b.arena[i].id == arenaID {
-				arenaIdx = i
-				break
-			}
-			if b.arena[i+1].id == arenaID {
-				arenaIdx = i + 1
-				break
-			}
-			if b.arena[i+2].id == arenaID {
-				arenaIdx = i + 2
-				break
-			}
-			if b.arena[i+3].id == arenaID {
-				arenaIdx = i + 3
-				break
-			}
-			if b.arena[i+4].id == arenaID {
-				arenaIdx = i + 4
-				break
-			}
-			if b.arena[i+5].id == arenaID {
-				arenaIdx = i + 5
-				break
-			}
-			if b.arena[i+6].id == arenaID {
-				arenaIdx = i + 6
-				break
-			}
-			if b.arena[i+7].id == arenaID {
-				arenaIdx = i + 7
-				break
-			}
-		}
-		for i := al8; i < al; i++ {
-			if b.arena[i].id == arenaID {
-				arenaIdx = i
-				break
-			}
-		}
-	}
-	if arenaIdx == 0 {
-		return
-	}
-
-	// // append recycling
-	// todo candidate to remove
-	// b.arena = append(b.arena, b.arena[:arenaIdx]...)
-	// copy(b.arena, b.arena[arenaIdx:al])
+func (b *bucket) recycleArenas(lo *arena) {
+	_ = lo
+	// var arenaIdx int
+	// al := len(b.arena)
+	// if al == 0 {
+	// 	return
+	// }
+	// if al < 256 {
+	// 	_ = b.arena[al-1]
+	// 	for i := 0; i < al; i++ {
+	// 		if b.arena[i].id == arenaID {
+	// 			arenaIdx = i
+	// 			break
+	// 		}
+	// 	}
+	// } else {
+	// 	al8 := al - al%8
+	// 	_ = b.arena[al-1]
+	// 	for i := 0; i < al8; i += 8 {
+	// 		if b.arena[i].id == arenaID {
+	// 			arenaIdx = i
+	// 			break
+	// 		}
+	// 		if b.arena[i+1].id == arenaID {
+	// 			arenaIdx = i + 1
+	// 			break
+	// 		}
+	// 		if b.arena[i+2].id == arenaID {
+	// 			arenaIdx = i + 2
+	// 			break
+	// 		}
+	// 		if b.arena[i+3].id == arenaID {
+	// 			arenaIdx = i + 3
+	// 			break
+	// 		}
+	// 		if b.arena[i+4].id == arenaID {
+	// 			arenaIdx = i + 4
+	// 			break
+	// 		}
+	// 		if b.arena[i+5].id == arenaID {
+	// 			arenaIdx = i + 5
+	// 			break
+	// 		}
+	// 		if b.arena[i+6].id == arenaID {
+	// 			arenaIdx = i + 6
+	// 			break
+	// 		}
+	// 		if b.arena[i+7].id == arenaID {
+	// 			arenaIdx = i + 7
+	// 			break
+	// 		}
+	// 	}
+	// 	for i := al8; i < al; i++ {
+	// 		if b.arena[i].id == arenaID {
+	// 			arenaIdx = i
+	// 			break
+	// 		}
+	// 	}
+	// }
+	// if arenaIdx == 0 {
+	// 	return
+	// }
+	//
+	// // // append recycling
+	// // todo candidate to remove
+	// // b.arena = append(b.arena, b.arena[:arenaIdx]...)
+	// // copy(b.arena, b.arena[arenaIdx:al])
+	// // b.arenaIdx = uint32(al - arenaIdx - 1)
+	// // b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
+	//
+	// // swap recycling
+	// // todo candidate to remove
+	// _ = b.arena[al-1]
+	// for i := arenaIdx; i < al; i++ {
+	// 	b.arena[i-arenaIdx], b.arena[i] = b.arena[i], b.arena[i-arenaIdx]
+	// }
 	// b.arenaIdx = uint32(al - arenaIdx - 1)
-	// b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
-
-	// swap recycling
-	// todo candidate to remove
-	_ = b.arena[al-1]
-	for i := arenaIdx; i < al; i++ {
-		b.arena[i-arenaIdx], b.arena[i] = b.arena[i], b.arena[i-arenaIdx]
-	}
-	b.arenaIdx = uint32(al - arenaIdx - 1)
-
-	_ = b.arena[al-1]
-	for i := 0; i < al; i++ {
-		b.arena[i].id = uint32(i)
-		if uint32(i) > b.arenaIdx {
-			b.arena[i].h.Len = 0
-		}
-	}
+	//
+	// _ = b.arena[al-1]
+	// for i := 0; i < al; i++ {
+	// 	b.arena[i].id = uint32(i)
+	// 	if uint32(i) > b.arenaIdx {
+	// 		b.arena[i].h.Len = 0
+	// 	}
+	// }
 }
 
 func (b *bucket) reset() error {
@@ -506,6 +526,8 @@ func (b *bucket) release() error {
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
+		b.al = 0
+		atomic.StoreUint32(&b.ac, 0)
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
@@ -567,7 +589,8 @@ func (b *bucket) nowT() time.Time {
 }
 
 func (b *bucket) alen() uint32 {
-	return uint32(len(b.arena))
+	// return uint32(len(b.arena))
+	return b.al
 }
 
 func (b *bucket) elen() uint32 {
@@ -578,7 +601,7 @@ func (b *bucket) mw() MetricsWriter {
 	return b.config.MetricsWriter
 }
 
-func (b *bucket) ac() MemorySize {
+func (b *bucket) as() MemorySize {
 	return b.config.ArenaCapacity
 }
 

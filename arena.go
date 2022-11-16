@@ -11,6 +11,7 @@ import (
 type arena struct {
 	id uint32
 	h  reflect.SliceHeader
+	n  *arena
 }
 
 // Create and alloc space for new arena.
