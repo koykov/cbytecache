@@ -172,9 +172,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			// Switch to the next arena.
 			prev := arena
 			arena = arena.n
-			if arena != nil && arena.h.Len != 0 {
-				println(arena.id)
-			}
+			b.act = arena
 			// Alloc new arena if needed.
 			if arena == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
@@ -191,11 +189,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				arena.p = prev
 				b.act, b.tail = arena, arena
 				b.size.snap(snapAlloc, b.ac32())
-				// b.arena = append(b.arena, arena)
-				// if b.alen() > b.arenaIdx {
-				// 	break
-				// }
-				// }
 			}
 			// arena = b.arena[b.arenaIdx]
 			// Calculate rest of bytes to write.
@@ -430,9 +423,7 @@ func (b *bucket) recycleArenas(lo *arena) {
 
 	a := head
 	for a != nil {
-		l := a.h.Len
 		a.reset()
-		println("reset", a.id, l, "->", a.h.Len)
 		a = a.n
 	}
 }

@@ -38,13 +38,13 @@ func (a *arena) ptr() uintptr {
 //
 // Caution! No bounds check control. External code must guarantee the safety.
 func (a *arena) write(b []byte) (n int) {
-	lo, hi := a.h.Len, a.h.Len+len(b)
-	a.h.Len = hi
-	buf := cbyte.Bytes(a.h)
-	n = copy(buf[lo:hi], b)
+	// lo, hi := a.h.Len, a.h.Len+len(b)
+	// a.h.Len = hi
+	// buf := cbyte.Bytes(a.h)
+	// n = copy(buf[lo:hi], b)
 	// todo check stable
-	// n = cbyte.Memcpy(uint64(a.h.Data), uint64(a.h.Len), b)
-	// a.h.Len += n
+	n = cbyte.Memcpy(uint64(a.h.Data), uint64(a.h.Len), b)
+	a.h.Len += n
 	return
 }
 

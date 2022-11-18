@@ -33,17 +33,11 @@ func (b *bucket) vacuum() error {
 	for arena != nil {
 		arena.release()
 		arena = arena.n
+		b.mw().Release(b.ac32())
+		b.size.snap(snapRelease, b.ac32())
 		c++
 	}
 	b.act.n = nil
-	// bal := b.alen()
-	// for i := b.arenaIdx + 1; i < b.alen(); i++ {
-	// 	b.arena[i].release()
-	// 	b.mw().Release(b.ac32())
-	// 	b.size.snap(snapRelease, b.ac32())
-	// }
-	// b.arena = b.arena[:b.arenaIdx+1]
-	// aal := b.alen()
 	if b.l() != nil {
 		b.l().Printf("bucket #%d: vacuum arena len %d", b.idx, c)
 	}
