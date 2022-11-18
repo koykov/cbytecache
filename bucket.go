@@ -28,8 +28,7 @@ type bucket struct {
 	entry []entry
 
 	// Memory arenas.
-	// todo remove me
-	arena []*arena
+	arena arenaList
 
 	head *arena
 	act  *arena

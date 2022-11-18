@@ -69,6 +69,32 @@ func (a arena) rest() uint32 {
 	return uint32(delta)
 }
 
+// Set previous arena.
+func (a *arena) setPrev(prev *arena) *arena {
+	if prev != nil {
+		a.p = prev
+	}
+	return a
+}
+
+// Get previous arena.
+func (a *arena) prev() *arena {
+	return a.p
+}
+
+// Set next arena.
+func (a *arena) setNext(next *arena) *arena {
+	if next != nil {
+		a.n = next
+	}
+	return a
+}
+
+// Get next arena.
+func (a *arena) next() *arena {
+	return a.n
+}
+
 // Reset arena data.
 //
 // Allocated memory will not release and become available to rewrite.
