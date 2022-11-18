@@ -28,6 +28,7 @@ type bucket struct {
 	entry []entry
 
 	// Memory arenas.
+	// todo remove me
 	arena []*arena
 
 	head *arena
@@ -39,6 +40,7 @@ type bucket struct {
 	lastEvc, lastVac time.Time
 
 	// Index of current arena available to write data.
+	// todo remove me
 	arenaIdx uint32
 }
 
@@ -130,27 +132,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		b.head, b.act, b.tail = arena, arena, arena
 		b.al++
 	}
-	// // Check if more space needed before write.
-	// if b.arenaIdx >= b.alen() {
-	// 	if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
-	// 		if b.l() != nil {
-	// 			b.l().Printf("bucket %d: no space on grow", b.idx)
-	// 		}
-	// 		b.mw().NoSpace()
-	// 		return ErrNoSpace
-	// 	}
-	// 	for {
-	// 		b.mw().Alloc(b.ac32())
-	// 		arena := allocArena(b.alen(), b.as())
-	// 		b.size.snap(snapAlloc, b.ac32())
-	// 		b.arena = append(b.arena, arena)
-	// 		if b.alen() > b.arenaIdx {
-	// 			break
-	// 		}
-	// 	}
-	// }
 	// Get current arena.
-	// arena := b.arena[b.arenaIdx]
 	arena := b.act
 	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
@@ -190,7 +172,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				b.act, b.tail = arena, arena
 				b.size.snap(snapAlloc, b.ac32())
 			}
-			// arena = b.arena[b.arenaIdx]
 			// Calculate rest of bytes to write.
 			mustWrite = min(rest, b.ac32())
 		}
@@ -202,8 +183,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		offset: arenaOffset,
 		length: pl,
 		expire: expire,
-		// aidptr: startArena.idPtr(),
-		aptr: startArena.ptr(),
+		aptr:   startArena.ptr(),
 	}
 	if entry.expire == 0 {
 		entry.expire = b.now() + uint32(b.config.ExpireInterval)/1e9
@@ -254,14 +234,13 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 // Internal getter. It works in lock-free mode thus need to guarantee thread-safety outside.
 func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []byte, error) {
 	// Get starting arena.
-	// arenaID := entry.arenaID()
 	arenaOffset := entry.offset
 
-	// if arenaID >= b.alen() {
-	// 	mw.Miss()
-	// 	return "", dst, ErrNotFound
-	// }
 	arena := entry.arena()
+	if arena == nil {
+		mw.Miss()
+		return "", dst, ErrNotFound
+	}
 
 	arenaRest := b.ac32() - arenaOffset
 	if entry.offset+entry.length < b.ac32() {
@@ -276,12 +255,10 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 				break
 			}
 			arena = arena.n
-			// arenaID++
 			if arena == nil {
 				mw.Corrupt()
 				return "", dst, ErrEntryCorrupt
 			}
-			// arena = b.arena[arenaID]
 			arenaOffset = 0
 			arenaRest = min(rest, b.ac32())
 		}
@@ -441,7 +418,6 @@ func (b *bucket) reset() error {
 	}()
 
 	b.buf.ResetLen()
-	b.arenaIdx = 0
 	b.evictRange(len(b.entry))
 	b.entry = b.entry[:0]
 
@@ -463,7 +439,6 @@ func (b *bucket) release() error {
 	}()
 
 	b.buf.Release()
-	b.arenaIdx = 0
 
 	var wg sync.WaitGroup
 
@@ -516,7 +491,6 @@ func (b *bucket) nowT() time.Time {
 }
 
 func (b *bucket) alen() uint32 {
-	// return uint32(len(b.arena))
 	return b.al
 }
 
