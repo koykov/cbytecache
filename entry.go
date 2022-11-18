@@ -16,7 +16,7 @@ func (e entry) arenaID() uint32 {
 	return *(*uint32)(uptr)
 }
 
-func (e entry) arena() *arena {
-	uptr := indirect.ToUnsafePtr(e.aidptr)
+func (e *entry) arena() *arena {
+	uptr := indirect.ToUnsafePtr(e.aptr)
 	return (*arena)(uptr)
 }

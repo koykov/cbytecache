@@ -172,6 +172,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			// Switch to the next arena.
 			prev := arena
 			arena = arena.n
+			if arena != nil && arena.h.Len != 0 {
+				println(arena.id)
+			}
 			// Alloc new arena if needed.
 			if arena == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
@@ -185,6 +188,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				b.mw().Alloc(b.ac32())
 				arena = allocArena(atomic.AddUint32(&b.ac, 1), b.as())
 				prev.n = arena
+				arena.p = prev
 				b.act, b.tail = arena, arena
 				b.size.snap(snapAlloc, b.ac32())
 				// b.arena = append(b.arena, arena)
@@ -375,9 +379,10 @@ func (b *bucket) bulkEvictLF() error {
 		return ErrOK
 	}
 
-	// Last arena ID that with actual entries.
-	// arenaID := b.entry[z-1].arenaID()
+	// Last arena contains unexpired entries.
 	lo := b.entry[z-1].arena()
+	// Previous arena must contain only expired entries.
+	lo1 := lo.p
 
 	if b.config.ExpireListener != nil {
 		// Call expire listener for all expired entries.
@@ -398,7 +403,7 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Add(1)
 	go func() {
 		bal, bao := b.alen(), b.arenaIdx
-		b.recycleArenas(lo)
+		b.recycleArenas(lo1)
 		aal, aao := b.alen(), b.arenaIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
@@ -412,90 +417,24 @@ func (b *bucket) bulkEvictLF() error {
 }
 
 func (b *bucket) recycleArenas(lo *arena) {
-	_ = lo
-	// var arenaIdx int
-	// al := len(b.arena)
-	// if al == 0 {
-	// 	return
-	// }
-	// if al < 256 {
-	// 	_ = b.arena[al-1]
-	// 	for i := 0; i < al; i++ {
-	// 		if b.arena[i].id == arenaID {
-	// 			arenaIdx = i
-	// 			break
-	// 		}
-	// 	}
-	// } else {
-	// 	al8 := al - al%8
-	// 	_ = b.arena[al-1]
-	// 	for i := 0; i < al8; i += 8 {
-	// 		if b.arena[i].id == arenaID {
-	// 			arenaIdx = i
-	// 			break
-	// 		}
-	// 		if b.arena[i+1].id == arenaID {
-	// 			arenaIdx = i + 1
-	// 			break
-	// 		}
-	// 		if b.arena[i+2].id == arenaID {
-	// 			arenaIdx = i + 2
-	// 			break
-	// 		}
-	// 		if b.arena[i+3].id == arenaID {
-	// 			arenaIdx = i + 3
-	// 			break
-	// 		}
-	// 		if b.arena[i+4].id == arenaID {
-	// 			arenaIdx = i + 4
-	// 			break
-	// 		}
-	// 		if b.arena[i+5].id == arenaID {
-	// 			arenaIdx = i + 5
-	// 			break
-	// 		}
-	// 		if b.arena[i+6].id == arenaID {
-	// 			arenaIdx = i + 6
-	// 			break
-	// 		}
-	// 		if b.arena[i+7].id == arenaID {
-	// 			arenaIdx = i + 7
-	// 			break
-	// 		}
-	// 	}
-	// 	for i := al8; i < al; i++ {
-	// 		if b.arena[i].id == arenaID {
-	// 			arenaIdx = i
-	// 			break
-	// 		}
-	// 	}
-	// }
-	// if arenaIdx == 0 {
-	// 	return
-	// }
-	//
-	// // // append recycling
-	// // todo candidate to remove
-	// // b.arena = append(b.arena, b.arena[:arenaIdx]...)
-	// // copy(b.arena, b.arena[arenaIdx:al])
-	// // b.arenaIdx = uint32(al - arenaIdx - 1)
-	// // b.arena = append(b.arena[:b.arenaIdx+1], b.arena[al:]...)
-	//
-	// // swap recycling
-	// // todo candidate to remove
-	// _ = b.arena[al-1]
-	// for i := arenaIdx; i < al; i++ {
-	// 	b.arena[i-arenaIdx], b.arena[i] = b.arena[i], b.arena[i-arenaIdx]
-	// }
-	// b.arenaIdx = uint32(al - arenaIdx - 1)
-	//
-	// _ = b.arena[al-1]
-	// for i := 0; i < al; i++ {
-	// 	b.arena[i].id = uint32(i)
-	// 	if uint32(i) > b.arenaIdx {
-	// 		b.arena[i].h.Len = 0
-	// 	}
-	// }
+	if lo == nil {
+		return
+	}
+	head, tail := b.head, b.tail
+	b.head = lo.n
+	b.head.p = nil
+	b.tail = lo
+	head.p = tail
+	tail.n = head
+	b.tail.n = nil
+
+	a := head
+	for a != nil {
+		l := a.h.Len
+		a.reset()
+		println("reset", a.id, l, "->", a.h.Len)
+		a = a.n
+	}
 }
 
 func (b *bucket) reset() error {
@@ -550,17 +489,14 @@ func (b *bucket) release() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		al := b.alen()
-		if al == 0 {
-			return
-		}
-		_ = b.arena[al-1]
-		var i uint32
-		for i = 0; i < al; i++ {
-			b.arena[i].release()
+		arena := b.head
+		for arena != nil {
+			arena.release()
+			arena = arena.n
 			b.mw().Release(b.ac32())
 			b.size.snap(snapRelease, b.ac32())
 		}
+		b.head, b.act, b.tail = nil, nil, nil
 	}()
 
 	wg.Wait()

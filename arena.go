@@ -9,9 +9,9 @@ import (
 
 // Memory arena implementation.
 type arena struct {
-	id uint32
-	h  reflect.SliceHeader
-	n  *arena
+	id   uint32
+	h    reflect.SliceHeader
+	p, n *arena
 }
 
 // Create and alloc space for new arena.
@@ -30,20 +30,21 @@ func (a *arena) idPtr() uintptr {
 
 // Get raw unsafe pointer of arena.
 func (a *arena) ptr() uintptr {
-	return uintptr(unsafe.Pointer(a))
+	uptr := unsafe.Pointer(a)
+	return uintptr(uptr)
 }
 
 // Write b to arena.
 //
 // Caution! No bounds check control. External code must guarantee the safety.
 func (a *arena) write(b []byte) (n int) {
-	// lo, hi := a.h.Len, a.h.Len+len(b)
-	// a.h.Len = hi
-	// buf := cbyte.Bytes(a.h)
-	// n = copy(buf[lo:hi], b)
+	lo, hi := a.h.Len, a.h.Len+len(b)
+	a.h.Len = hi
+	buf := cbyte.Bytes(a.h)
+	n = copy(buf[lo:hi], b)
 	// todo check stable
-	n = cbyte.Memcpy(uint64(a.h.Data), uint64(a.h.Len), b)
-	a.h.Len += n
+	// n = cbyte.Memcpy(uint64(a.h.Data), uint64(a.h.Len), b)
+	// a.h.Len += n
 	return
 }
 
