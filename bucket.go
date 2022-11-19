@@ -123,6 +123,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	if b.arena.len() == 0 {
 		arena := b.arena.alloc(nil, b.as())
 		b.arena.setHead(arena).setAct(arena)
+		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
 	arena := b.arena.act()
