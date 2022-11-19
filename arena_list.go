@@ -21,13 +21,22 @@ func (l *arenaList) len() int {
 }
 
 func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
-	a := &arena{id: atomic.AddUint32(&l.i, 1)}
+	var a *arena
+	for i := 0; i < len(l.buf); i++ {
+		if l.buf[i].empty() {
+			a = l.buf[i]
+			break
+		}
+	}
+	if a == nil {
+		a = &arena{id: atomic.AddUint32(&l.i, 1)}
+		l.buf = append(l.buf, a)
+	}
 	a.h = cbyte.InitHeader(0, int(size))
 	a.setPrev(prev)
 	if prev != nil {
 		prev.setNext(a)
 	}
-	l.buf = append(l.buf, a)
 	l.setTail(a)
 	return a
 }

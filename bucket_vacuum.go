@@ -32,7 +32,9 @@ func (b *bucket) vacuum() error {
 	arena := b.arena.act().next()
 	for arena != nil {
 		arena.release()
-		arena = arena.n
+		prev := arena
+		arena = arena.next()
+		prev.setNext(nil).setPrev(nil)
 		b.mw().Release(b.ac32())
 		b.size.snap(snapRelease, b.ac32())
 		c++

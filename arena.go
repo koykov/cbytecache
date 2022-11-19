@@ -14,6 +14,11 @@ type arena struct {
 	p, n *arena
 }
 
+// Check arena has allocated memory.
+func (a *arena) empty() bool {
+	return a.h.Data == 0 && a.h.Cap == 0
+}
+
 // Get raw unsafe pointer of arena.
 //
 // Caution! Pointer receiver strongly required here.
@@ -96,4 +101,5 @@ func (a *arena) reset() {
 // Arena object doesn't destroy. Using it afterward is unsafe.
 func (a *arena) release() {
 	cbyte.ReleaseHeader(a.h)
+	a.h.Data, a.h.Len, a.h.Cap = 0, 0, 0
 }
