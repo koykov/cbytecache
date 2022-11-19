@@ -5,26 +5,27 @@ import (
 	"unsafe"
 
 	"github.com/koykov/cbyte"
+	"github.com/koykov/indirect"
 )
 
 // Memory arena implementation.
 type arena struct {
-	id uint32
-	h  reflect.SliceHeader
+	id   uint32
+	h    reflect.SliceHeader
+	p, n uintptr
 }
 
-// Create and alloc space for new arena.
-func allocArena(id uint32, ac MemorySize) *arena {
-	a := &arena{id: id}
-	a.h = cbyte.InitHeader(0, int(ac))
-	return a
+// Check arena has allocated memory.
+func (a *arena) empty() bool {
+	return a.h.Data == 0 && a.h.Cap == 0
 }
 
-// Get raw unsafe pointer to id field.
+// Get raw unsafe pointer of arena.
 //
 // Caution! Pointer receiver strongly required here.
-func (a *arena) idPtr() uintptr {
-	return uintptr(unsafe.Pointer(&a.id))
+func (a *arena) ptr() uintptr {
+	uptr := unsafe.Pointer(a)
+	return uintptr(uptr)
 }
 
 // Write b to arena.
@@ -67,9 +68,53 @@ func (a arena) rest() uint32 {
 	return uint32(delta)
 }
 
+// Set previous arena.
+func (a *arena) setPrev(prev *arena) *arena {
+	a.p = 0
+	if prev != nil {
+		a.p = prev.ptr()
+	}
+	return a
+}
+
+// Get previous arena.
+func (a *arena) prev() *arena {
+	if a.p == 0 {
+		return nil
+	}
+	raw := indirect.ToUnsafePtr(a.p)
+	return (*arena)(raw)
+}
+
+// Set next arena.
+func (a *arena) setNext(next *arena) *arena {
+	a.n = 0
+	if next != nil {
+		a.n = next.ptr()
+	}
+	return a
+}
+
+// Get next arena.
+func (a *arena) next() *arena {
+	if a.n == 0 {
+		return nil
+	}
+	raw := indirect.ToUnsafePtr(a.n)
+	return (*arena)(raw)
+}
+
+// Reset arena data.
+//
+// Allocated memory will not release and become available to rewrite.
+func (a *arena) reset() {
+	a.h.Len = 0
+}
+
 // Release memory arena.
 //
 // Arena object doesn't destroy. Using it afterward is unsafe.
 func (a *arena) release() {
 	cbyte.ReleaseHeader(a.h)
+	a.h.Data, a.h.Len, a.h.Cap = 0, 0, 0
 }

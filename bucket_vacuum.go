@@ -28,16 +28,20 @@ func (b *bucket) vacuum() error {
 		}
 	}
 
-	bal := b.alen()
-	for i := b.arenaIdx + 1; i < b.alen(); i++ {
-		b.arena[i].release()
+	var c int
+	arena := b.arena.act().next()
+	for arena != nil {
+		arena.release()
+		prev := arena
+		arena = arena.next()
+		prev.setNext(nil).setPrev(nil)
 		b.mw().Release(b.ac32())
 		b.size.snap(snapRelease, b.ac32())
+		c++
 	}
-	b.arena = b.arena[:b.arenaIdx+1]
-	aal := b.alen()
+	b.arena.act().setNext(nil)
 	if b.l() != nil {
-		b.l().Printf("bucket #%d: vacuum arena len %d -> %d", b.idx, bal, aal)
+		b.l().Printf("bucket #%d: vacuum arena len %d", b.idx, c)
 	}
 
 	return ErrOK
