@@ -363,11 +363,9 @@ func (b *bucket) bulkEvictLF() error {
 	// Recycle arenas.
 	wg.Add(1)
 	go func() {
-		bal, bao := b.alen(), b.arenaIdx
-		b.arena.recycle(lo1)
-		aal, aao := b.alen(), b.arenaIdx
+		c := b.arena.recycle(lo1)
 		if b.l() != nil {
-			b.l().Printf("bucket #%d: evict arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
+			b.l().Printf("bucket #%d: evict arena %d", b.idx, c)
 		}
 		wg.Done()
 	}()
@@ -375,25 +373,6 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Wait()
 
 	return ErrOK
-}
-
-func (b *bucket) recycleArenas(lo *arena) {
-	if lo == nil {
-		return
-	}
-	head, tail := b.arena.head(), b.arena.tail()
-	b.arena.setHead(lo.n)
-	b.arena.head().setPrev(nil)
-	b.arena.setTail(lo)
-	head.setPrev(tail)
-	tail.setNext(head)
-	b.arena.tail().setNext(nil)
-
-	a := head
-	for a != nil {
-		a.reset()
-		a = a.n
-	}
 }
 
 func (b *bucket) reset() error {

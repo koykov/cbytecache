@@ -1,7 +1,6 @@
 package cbytecache
 
 import (
-	"sync/atomic"
 	"unsafe"
 
 	"github.com/koykov/cbyte"
@@ -29,7 +28,7 @@ func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
 		}
 	}
 	if a == nil {
-		a = &arena{id: atomic.AddUint32(&l.i, 1)}
+		a = &arena{id: uint32(l.len())}
 		l.buf = append(l.buf, a)
 	}
 	a.h = cbyte.InitHeader(0, int(size))
@@ -71,9 +70,9 @@ func (l *arenaList) tail() *arena {
 	return (*arena)(raw)
 }
 
-func (l *arenaList) recycle(lo *arena) {
+func (l *arenaList) recycle(lo *arena) int {
 	if lo == nil {
-		return
+		return 0
 	}
 	head, tail := l.head(), l.tail()
 	l.setHead(lo.n)
@@ -83,9 +82,12 @@ func (l *arenaList) recycle(lo *arena) {
 	tail.setNext(head)
 	l.tail().setNext(nil)
 
+	var c int
 	a := head
 	for a != nil {
 		a.reset()
 		a = a.n
+		c++
 	}
+	return c
 }
