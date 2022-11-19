@@ -75,7 +75,7 @@ func (l *arenaList) recycle(lo *arena) int {
 		return 0
 	}
 	head, tail := l.head(), l.tail()
-	l.setHead(lo.n)
+	l.setHead(lo.next())
 	l.head().setPrev(nil)
 	l.setTail(lo)
 	head.setPrev(tail)
@@ -86,7 +86,7 @@ func (l *arenaList) recycle(lo *arena) int {
 	a := head
 	for a != nil {
 		a.reset()
-		a = a.n
+		a = a.next()
 		c++
 	}
 	return c

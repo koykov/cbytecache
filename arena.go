@@ -5,13 +5,14 @@ import (
 	"unsafe"
 
 	"github.com/koykov/cbyte"
+	"github.com/koykov/indirect"
 )
 
 // Memory arena implementation.
 type arena struct {
 	id   uint32
 	h    reflect.SliceHeader
-	p, n *arena
+	p, n uintptr
 }
 
 // Check arena has allocated memory.
@@ -69,24 +70,38 @@ func (a arena) rest() uint32 {
 
 // Set previous arena.
 func (a *arena) setPrev(prev *arena) *arena {
-	a.p = prev
+	a.p = 0
+	if prev != nil {
+		a.p = prev.ptr()
+	}
 	return a
 }
 
 // Get previous arena.
 func (a *arena) prev() *arena {
-	return a.p
+	if a.p == 0 {
+		return nil
+	}
+	raw := indirect.ToUnsafePtr(a.p)
+	return (*arena)(raw)
 }
 
 // Set next arena.
 func (a *arena) setNext(next *arena) *arena {
-	a.n = next
+	a.n = 0
+	if next != nil {
+		a.n = next.ptr()
+	}
 	return a
 }
 
 // Get next arena.
 func (a *arena) next() *arena {
-	return a.n
+	if a.n == 0 {
+		return nil
+	}
+	raw := indirect.ToUnsafePtr(a.n)
+	return (*arena)(raw)
 }
 
 // Reset arena data.

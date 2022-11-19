@@ -245,7 +245,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 			if rest -= arenaRest; rest == 0 {
 				break
 			}
-			arena = arena.n
+			arena = arena.next()
 			if arena == nil {
 				mw.Corrupt()
 				return "", dst, ErrEntryCorrupt
@@ -343,7 +343,7 @@ func (b *bucket) bulkEvictLF() error {
 	// Last arena contains unexpired entries.
 	lo := b.entry[z-1].arena()
 	// Previous arena must contain only expired entries.
-	lo1 := lo.p
+	lo1 := lo.prev()
 
 	if b.config.ExpireListener != nil {
 		// Call expire listener for all expired entries.
@@ -426,7 +426,7 @@ func (b *bucket) release() error {
 		arena := b.arena.head()
 		for arena != nil {
 			arena.release()
-			arena = arena.n
+			arena = arena.next()
 			b.mw().Release(b.ac32())
 			b.size.snap(snapRelease, b.ac32())
 		}
