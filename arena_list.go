@@ -16,11 +16,17 @@ type arenaList struct {
 	buf []*arena
 }
 
+func (l *arenaList) len() int {
+	return len(l.buf)
+}
+
 func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
 	a := &arena{id: atomic.AddUint32(&l.i, 1)}
 	a.h = cbyte.InitHeader(0, int(size))
 	a.setPrev(prev)
-	prev.setNext(a)
+	if prev != nil {
+		prev.setNext(a)
+	}
 	l.buf = append(l.buf, a)
 	l.setTail(a)
 	return a
@@ -54,4 +60,23 @@ func (l *arenaList) act() *arena {
 func (l *arenaList) tail() *arena {
 	raw := indirect.ToUnsafePtr(l.tail_)
 	return (*arena)(raw)
+}
+
+func (l *arenaList) recycle(lo *arena) {
+	if lo == nil {
+		return
+	}
+	head, tail := l.head(), l.tail()
+	l.setHead(lo.n)
+	l.head().setPrev(nil)
+	l.setTail(lo)
+	head.setPrev(tail)
+	tail.setNext(head)
+	l.tail().setNext(nil)
+
+	a := head
+	for a != nil {
+		a.reset()
+		a = a.n
+	}
 }

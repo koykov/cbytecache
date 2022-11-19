@@ -30,12 +30,6 @@ type bucket struct {
 	// Memory arenas.
 	arena arenaList
 
-	head *arena
-	act  *arena
-	tail *arena
-	al   uint32
-	ac   uint32
-
 	lastEvc, lastVac time.Time
 
 	// Index of current arena available to write data.
@@ -126,13 +120,12 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	}
 
 	// Init alloc.
-	if b.head == nil && b.act == nil && b.tail == nil {
-		arena := allocArena(atomic.AddUint32(&b.ac, 1), b.as())
-		b.head, b.act, b.tail = arena, arena, arena
-		b.al++
+	if b.arena.len() == 0 {
+		arena := b.arena.alloc(nil, b.as())
+		b.arena.setHead(arena).setAct(arena)
 	}
 	// Get current arena.
-	arena := b.act
+	arena := b.arena.act()
 	startArena := arena
 	arenaOffset, arenaRest := arena.offset(), arena.rest()
 	rest := uint32(len(p))
@@ -152,8 +145,8 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			}
 			// Switch to the next arena.
 			prev := arena
-			arena = arena.n
-			b.act = arena
+			arena = arena.next()
+			b.arena.setAct(arena)
 			// Alloc new arena if needed.
 			if arena == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
@@ -165,10 +158,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				}
 				// for {
 				b.mw().Alloc(b.ac32())
-				arena = allocArena(atomic.AddUint32(&b.ac, 1), b.as())
-				prev.n = arena
-				arena.p = prev
-				b.act, b.tail = arena, arena
+				arena = b.arena.alloc(prev, b.as())
+				prev.setNext(arena)
+				b.arena.setAct(arena).setTail(arena)
 				b.size.snap(snapAlloc, b.ac32())
 			}
 			// Calculate rest of bytes to write.
@@ -372,7 +364,7 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Add(1)
 	go func() {
 		bal, bao := b.alen(), b.arenaIdx
-		b.recycleArenas(lo1)
+		b.arena.recycle(lo1)
 		aal, aao := b.alen(), b.arenaIdx
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena len/offset %d/%d -> %d/%d", b.idx, bal, bao, aal, aao)
@@ -389,13 +381,13 @@ func (b *bucket) recycleArenas(lo *arena) {
 	if lo == nil {
 		return
 	}
-	head, tail := b.head, b.tail
-	b.head = lo.n
-	b.head.p = nil
-	b.tail = lo
-	head.p = tail
-	tail.n = head
-	b.tail.n = nil
+	head, tail := b.arena.head(), b.arena.tail()
+	b.arena.setHead(lo.n)
+	b.arena.head().setPrev(nil)
+	b.arena.setTail(lo)
+	head.setPrev(tail)
+	tail.setNext(head)
+	b.arena.tail().setNext(nil)
 
 	a := head
 	for a != nil {
@@ -431,8 +423,6 @@ func (b *bucket) release() error {
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
-		b.al = 0
-		atomic.StoreUint32(&b.ac, 0)
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
@@ -454,14 +444,14 @@ func (b *bucket) release() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		arena := b.head
+		arena := b.arena.head()
 		for arena != nil {
 			arena.release()
 			arena = arena.n
 			b.mw().Release(b.ac32())
 			b.size.snap(snapRelease, b.ac32())
 		}
-		b.head, b.act, b.tail = nil, nil, nil
+		b.arena.setHead(nil).setAct(nil).setTail(nil)
 	}()
 
 	wg.Wait()
@@ -490,7 +480,7 @@ func (b *bucket) nowT() time.Time {
 }
 
 func (b *bucket) alen() uint32 {
-	return b.al
+	return uint32(b.arena.len())
 }
 
 func (b *bucket) elen() uint32 {

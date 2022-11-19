@@ -14,13 +14,6 @@ type arena struct {
 	p, n *arena
 }
 
-// Create and alloc space for new arena.
-func allocArena(id uint32, ac MemorySize) *arena {
-	a := &arena{id: id}
-	a.h = cbyte.InitHeader(0, int(ac))
-	return a
-}
-
 // Get raw unsafe pointer of arena.
 //
 // Caution! Pointer receiver strongly required here.
@@ -71,9 +64,7 @@ func (a arena) rest() uint32 {
 
 // Set previous arena.
 func (a *arena) setPrev(prev *arena) *arena {
-	if prev != nil {
-		a.p = prev
-	}
+	a.p = prev
 	return a
 }
 
@@ -84,9 +75,7 @@ func (a *arena) prev() *arena {
 
 // Set next arena.
 func (a *arena) setNext(next *arena) *arena {
-	if next != nil {
-		a.n = next
-	}
+	a.n = next
 	return a
 }
 

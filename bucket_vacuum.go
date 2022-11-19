@@ -29,7 +29,7 @@ func (b *bucket) vacuum() error {
 	}
 
 	var c int
-	arena := b.act.n
+	arena := b.arena.act().next()
 	for arena != nil {
 		arena.release()
 		arena = arena.n
@@ -37,7 +37,7 @@ func (b *bucket) vacuum() error {
 		b.size.snap(snapRelease, b.ac32())
 		c++
 	}
-	b.act.n = nil
+	b.arena.act().setNext(nil)
 	if b.l() != nil {
 		b.l().Printf("bucket #%d: vacuum arena len %d", b.idx, c)
 	}
