@@ -37,6 +37,15 @@ type Config struct {
 	// VacuumWorkers limits workers count for vacuum operation.
 	// If this param omit defaultVacuumWorkers (16) will use instead.
 	VacuumWorkers uint
+	// VacuumRatio represents how many of memory available to release must be released. Available range is [0:1.0].
+	// There are three predefined ratios:
+	// * VacuumRatioWeak - release 25% of memory available to release
+	// * VacuumRatioModerate - release 50%
+	// * VacuumRatioAggressive - release 75%
+	// Lower value will trigger reallocation rarely. Higher value will keep the lowest cache size, but causes often
+	// reallocations.
+	// If this param omit VacuumRatioModerate (50%) will use instead.
+	VacuumRatio float64
 
 	// ResetWorkers limits workers count for reset operation.
 	// If this param omit defaultResetWorkers (16) will use instead.

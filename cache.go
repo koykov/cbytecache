@@ -58,6 +58,9 @@ func New(config *Config) (*Cache, error) {
 	if config.VacuumInterval > 0 && config.VacuumInterval <= config.EvictInterval {
 		return nil, ErrVacuumDur
 	}
+	if r := config.VacuumRatio; r <= 0 || r > 1 {
+		config.VacuumRatio = VacuumRatioModerate
+	}
 
 	if config.MetricsWriter == nil {
 		config.MetricsWriter = &DummyMetrics{}

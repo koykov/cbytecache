@@ -1,6 +1,15 @@
 package cbytecache
 
-import "sync/atomic"
+import (
+	"math"
+	"sync/atomic"
+)
+
+const (
+	VacuumRatioWeak       = .25
+	VacuumRatioModerate   = .5
+	VacuumRatioAggressive = .75
+)
 
 func (b *bucket) vacuum() error {
 	if err := b.checkStatus(); err != nil {
@@ -29,20 +38,28 @@ func (b *bucket) vacuum() error {
 	}
 
 	var c int
-	arena := b.arena.act().next()
-	for arena != nil {
-		arena.release()
-		prev := arena
-		arena = arena.next()
-		prev.setNext(nil).setPrev(nil)
-		b.mw().Release(b.ac32())
-		b.size.snap(snapRelease, b.ac32())
+	a := b.arena.act().next()
+	for a != nil {
+		a = a.next()
 		c++
 	}
-	b.arena.act().setNext(nil)
+	r := int(math.Floor(float64(c) * b.config.VacuumRatio))
+	a = b.arena.tail()
+	for i := 0; i < r; i++ {
+		a.release()
+		tail := a
+		a = a.prev()
+		tail.setNext(nil).setPrev(nil)
+		a.setNext(nil)
+		b.mw().Release(b.ac32())
+		b.size.snap(snapRelease, b.ac32())
+	}
+	b.arena.setTail(a)
 	if b.l() != nil {
 		b.l().Printf("bucket #%d: vacuum arena len %d", b.idx, c)
 	}
 
 	return ErrOK
 }
+
+var _, _, _ = VacuumRatioWeak, VacuumRatioModerate, VacuumRatioAggressive
