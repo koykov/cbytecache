@@ -45,14 +45,18 @@ func (b *bucket) vacuum() error {
 	}
 	r := int(math.Floor(float64(c) * b.config.VacuumRatio))
 	a = b.arena.tail()
+	c = 0
 	for i := 0; i < r; i++ {
-		a.release()
+		if !a.empty() {
+			a.release()
+			b.mw().Release(b.ac32())
+		}
 		tail := a
 		a = a.prev()
 		tail.setNext(nil).setPrev(nil)
 		a.setNext(nil)
-		b.mw().Release(b.ac32())
 		b.size.snap(snapRelease, b.ac32())
+		c++
 	}
 	b.arena.setTail(a)
 	if b.l() != nil {

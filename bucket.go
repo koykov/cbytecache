@@ -157,7 +157,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					b.mw().NoSpace()
 					return ErrNoSpace
 				}
-				// for {
 				b.mw().Alloc(b.ac32())
 				arena = b.arena.alloc(prev, b.as())
 				prev.setNext(arena)
