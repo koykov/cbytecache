@@ -49,7 +49,7 @@ func (b *bucket) vacuum() error {
 	for i := 0; i < r; i++ {
 		if !a.empty() {
 			a.release()
-			b.mw().Release(b.ac32())
+			b.mw().Release(b.ids, b.ac32())
 		}
 		tail := a
 		a = a.prev()

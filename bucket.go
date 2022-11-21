@@ -15,6 +15,7 @@ import (
 type bucket struct {
 	config *Config
 	idx    uint32
+	ids    string
 	status uint32
 	maxCap uint32
 	size   bucketSize
@@ -109,7 +110,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 				if b.l() != nil {
 					b.l().Printf("collision %d: keys \"%s\" and \"%s\"", h, key, key1)
 				}
-				b.mw().Collision()
+				b.mw().Collision(b.ids)
 				err = ErrEntryCollision
 				return
 			}
@@ -123,6 +124,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	if b.arena.len() == 0 {
 		arena := b.arena.alloc(nil, b.as())
 		b.arena.setHead(arena).setAct(arena)
+		b.mw().Alloc(b.ids, b.ac32())
 		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
@@ -154,11 +156,11 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
 					}
-					b.mw().NoSpace()
+					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
-				b.mw().Alloc(b.ac32())
 				arena = b.arena.alloc(prev, b.as())
+				b.mw().Alloc(b.ids, b.ac32())
 				prev.setNext(arena)
 				b.arena.setAct(arena).setTail(arena)
 				b.size.snap(snapAlloc, b.ac32())
@@ -183,7 +185,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)
-	b.mw().Set(pl, b.nowT().Sub(stm))
+	b.mw().Set(b.ids, pl, b.nowT().Sub(stm))
 	return ErrOK
 }
 
@@ -201,23 +203,23 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 		stm = b.nowT()
 	)
 	if idx, ok = b.index[h]; !ok {
-		b.mw().Miss()
+		b.mw().Miss(b.ids)
 		return dst, ErrNotFound
 	}
 	if idx >= b.elen() {
-		b.mw().Miss()
+		b.mw().Miss(b.ids)
 		return dst, ErrNotFound
 	}
 	entry := &b.entry[idx]
 	if entry.expire < b.now() {
-		b.mw().Expire()
+		b.mw().Expire(b.ids)
 		return dst, ErrNotFound
 	}
 
 	var err error
 	_, dst, err = b.getLF(dst, entry, b.mw())
 	if err == nil {
-		b.mw().Hit(b.nowT().Sub(stm))
+		b.mw().Hit(b.ids, b.nowT().Sub(stm))
 	}
 	return dst, err
 }
@@ -229,7 +231,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 
 	arena := entry.arena()
 	if arena == nil {
-		mw.Miss()
+		mw.Miss(b.ids)
 		return "", dst, ErrNotFound
 	}
 
@@ -247,7 +249,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 			}
 			arena = arena.next()
 			if arena == nil {
-				mw.Corrupt()
+				mw.Corrupt(b.ids)
 				return "", dst, ErrEntryCorrupt
 			}
 			arenaOffset = 0
@@ -364,6 +366,7 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Add(1)
 	go func() {
 		c := b.arena.recycle(lo1)
+		b.mw().Reset(b.ids, c)
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena %d", b.idx, c)
 		}
@@ -423,11 +426,11 @@ func (b *bucket) release() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		arena := b.arena.head()
-		for arena != nil {
-			arena.release()
-			arena = arena.next()
-			b.mw().Release(b.ac32())
+		a := b.arena.head()
+		for a != nil {
+			a.release()
+			a = a.next()
+			b.mw().Release(b.ids, b.ac32())
 			b.size.snap(snapRelease, b.ac32())
 		}
 		b.arena.setHead(nil).setAct(nil).setTail(nil)
