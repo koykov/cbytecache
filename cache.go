@@ -3,6 +3,7 @@ package cbytecache
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -86,6 +87,7 @@ func New(config *Config) (*Cache, error) {
 		c.buckets[i] = &bucket{
 			config: config,
 			idx:    uint32(i),
+			ids:    strconv.Itoa(i),
 			maxCap: uint32(bucketSize),
 			buf:    cbytebuf.NewCByteBuf(),
 			index:  make(map[uint64]uint32),
