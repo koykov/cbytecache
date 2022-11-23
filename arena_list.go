@@ -19,8 +19,7 @@ func (l *arenaList) len() int {
 	return len(l.buf)
 }
 
-func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
-	var a *arena
+func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	for i := 0; i < len(l.buf); i++ {
 		if l.buf[i].empty() {
 			a = l.buf[i]
@@ -30,6 +29,7 @@ func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
 	if a == nil {
 		a = &arena{id: uint32(l.len())}
 		l.buf = append(l.buf, a)
+		ok = true
 	}
 	a.h = cbyte.InitHeader(0, int(size))
 	a.setPrev(prev)
@@ -37,7 +37,7 @@ func (l *arenaList) alloc(prev *arena, size MemorySize) *arena {
 		prev.setNext(a)
 	}
 	l.setTail(a)
-	return a
+	return
 }
 
 func (l *arenaList) setHead(head *arena) *arenaList {

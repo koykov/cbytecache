@@ -122,36 +122,38 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 
 	// Init alloc.
 	if b.arena.len() == 0 {
-		arena := b.arena.alloc(nil, b.as())
-		b.arena.setHead(arena).setAct(arena)
+		a, ok1 := b.arena.alloc(nil, b.as())
+		b.arena.setHead(a).setAct(a)
 		b.mw().Alloc(b.ids, b.ac32())
+		b.mw().ArenaAlloc(b.ids, ok1)
 		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
-	arena := b.arena.act()
-	startArena := arena
-	arenaOffset, arenaRest := arena.offset(), arena.rest()
+	a := b.arena.act()
+	startArena := a
+	arenaOffset, arenaRest := a.offset(), a.rest()
 	rest := uint32(len(p))
 	if arenaRest >= rest {
 		// Arena has enough space to write the entry.
-		arena.write(p)
+		a.write(p)
 	} else {
 		// Arena hasn't enough space - need share entry among arenas.
 		mustWrite := arenaRest
 		for {
 			// Write entry bytes that fits to arena free space.
-			arena.write(p[:mustWrite])
+			a.write(p[:mustWrite])
 			p = p[mustWrite:]
 			if rest -= mustWrite; rest == 0 {
 				// All entry bytes written.
 				break
 			}
 			// Switch to the next arena.
-			prev := arena
-			arena = arena.next()
-			b.arena.setAct(arena)
+			prev := a
+			a = a.next()
+			b.arena.setAct(a)
+			b.mw().ArenaFill(b.ids)
 			// Alloc new arena if needed.
-			if arena == nil {
+			if a == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
@@ -159,10 +161,12 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
-				arena = b.arena.alloc(prev, b.as())
+				var ok1 bool
+				a, ok1 = b.arena.alloc(prev, b.as())
 				b.mw().Alloc(b.ids, b.ac32())
-				prev.setNext(arena)
-				b.arena.setAct(arena).setTail(arena)
+				b.mw().ArenaAlloc(b.ids, ok1)
+				prev.setNext(a)
+				b.arena.setAct(a).setTail(a)
 				b.size.snap(snapAlloc, b.ac32())
 			}
 			// Calculate rest of bytes to write.
@@ -366,7 +370,9 @@ func (b *bucket) bulkEvictLF() error {
 	wg.Add(1)
 	go func() {
 		c := b.arena.recycle(lo1)
-		b.mw().Reset(b.ids, c)
+		for i := 0; i < c; i++ {
+			b.mw().ArenaReset(b.ids)
+		}
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena %d", b.idx, c)
 		}
