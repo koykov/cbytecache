@@ -85,9 +85,11 @@ func (l *arenaList) recycle(lo *arena) int {
 	var c int
 	a := head
 	for a != nil {
-		a.reset()
+		if !a.empty() {
+			a.reset()
+			c++
+		}
 		a = a.next()
-		c++
 	}
 	return c
 }
