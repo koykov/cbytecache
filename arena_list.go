@@ -7,7 +7,9 @@ import (
 	"github.com/koykov/indirect"
 )
 
+// Container of bucket's arenas.
 type arenaList struct {
+	// Head, actual and tail arenas pointers.
 	head_, act_, tail_ uintptr
 
 	i, l, c uint32
@@ -15,10 +17,14 @@ type arenaList struct {
 	buf []*arena
 }
 
+// Get length of arenas storage.
 func (l *arenaList) len() int {
 	return len(l.buf)
 }
 
+// Alloc new arena.
+//
+// Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
 func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	for i := 0; i < len(l.buf); i++ {
 		if l.buf[i].empty() {
@@ -40,36 +46,45 @@ func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	return
 }
 
+// Set head arena.
 func (l *arenaList) setHead(head *arena) *arenaList {
 	l.head_ = uintptr(unsafe.Pointer(head))
 	return l
 }
 
+// Set actual arena.
 func (l *arenaList) setAct(act *arena) *arenaList {
 	l.act_ = uintptr(unsafe.Pointer(act))
 	return l
 }
 
+// Set tail arena.
 func (l *arenaList) setTail(tail *arena) *arenaList {
 	l.tail_ = uintptr(unsafe.Pointer(tail))
 	return l
 }
 
+// Get head arena.
 func (l *arenaList) head() *arena {
 	raw := indirect.ToUnsafePtr(l.head_)
 	return (*arena)(raw)
 }
 
+// Get actual arena.
 func (l *arenaList) act() *arena {
 	raw := indirect.ToUnsafePtr(l.act_)
 	return (*arena)(raw)
 }
 
+// Get tail arena.
 func (l *arenaList) tail() *arena {
 	raw := indirect.ToUnsafePtr(l.tail_)
 	return (*arena)(raw)
 }
 
+// Recycle arenas using lo as starting arena.
+//
+// After recycle arenas contains unexpired entries will shift to the head, all other arenas will shift to the end.
 func (l *arenaList) recycle(lo *arena) int {
 	if lo == nil {
 		return 0
