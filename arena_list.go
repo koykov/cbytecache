@@ -11,9 +11,7 @@ import (
 type arenaList struct {
 	// Head, actual and tail arenas pointers.
 	head_, act_, tail_ uintptr
-
-	i, l, c uint32
-
+	// Arenas list storage.
 	buf []*arena
 }
 
