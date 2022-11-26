@@ -50,6 +50,7 @@ func (b *bucket) vacuum() error {
 		if !a.empty() {
 			a.release()
 			b.mw().Release(b.ids, b.ac32())
+			b.mw().ArenaRelease(b.ids)
 		}
 		tail := a
 		a = a.prev()
