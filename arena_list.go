@@ -88,24 +88,41 @@ func (l *arenaList) recycle(lo *arena) int {
 		return 0
 	}
 
-	// | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-	//   ^       ^           ^               ^
-	//   h       l           a               t
-	// l (lo) is a last arena contains only expired entries.
+	// Old arena sequence:
+	// ┌───────────────────────────────────────┐
+	// │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │ 8 │ 9 │
+	// └───────────────────────────────────────┘
+	//   ▲       ▲           ▲               ▲
+	//   │       │           │               │
+	//   head    │           │               │
+	//   low ────┘           │               │
+	//   actual ─────────────┘               │
+	//   tail ───────────────────────────────┘
+	// low is a last arena contains only expired entries.
 
 	oh, ot := l.head(), l.tail()
+	// Set low+1 as head since it contains at least one unexpired entry.
 	l.setHead(lo.next())
 	l.head().setPrev(nil)
+	// low became new tail.
 	l.setTail(lo)
+	// Old head previous arena became old tail.
 	oh.setPrev(ot)
+	// Old tail next arena became old head.
 	ot.setNext(oh)
 	l.tail().setNext(nil)
 
-	// | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 | 1 | 2 |
-	//   ^       ^                           ^
-	//   h       a                           t
-	// Arena #3 contains at least one unexpired entry, so it became new h (head).
-	// Arena #2 became new t (tail).
+	// New sequence:
+	// ┌───────────────────────────────────────┐
+	// │ 3 │ 4 │ 5 │ 6 │ 7 │ 8 │ 9 │ 0 │ 1 │ 2 │
+	// └───────────────────────────────────────┘
+	//   ▲       ▲                           ▲
+	//   │       │                           │
+	//   head    │                           │
+	//   actual ─┘                           │
+	//   tail ───────────────────────────────┘
+	// Arena #3 contains at least one unexpired entry, so it became new head.
+	// Arena #2 became new tail.
 	// Recycle end.
 
 	// Clear all arenas after actual:
