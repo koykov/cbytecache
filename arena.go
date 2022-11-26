@@ -15,9 +15,14 @@ type arena struct {
 	p, n uintptr
 }
 
-// Check arena has allocated memory.
-func (a *arena) empty() bool {
+// Check arena memory is released.
+func (a *arena) released() bool {
 	return a.h.Data == 0 && a.h.Cap == 0
+}
+
+// Check arena memory is empty.
+func (a *arena) empty() bool {
+	return !a.released() && a.h.Len == 0
 }
 
 // Get raw unsafe pointer of arena.

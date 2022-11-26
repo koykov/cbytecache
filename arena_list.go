@@ -25,7 +25,7 @@ func (l *arenaList) len() int {
 // Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
 func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	for i := 0; i < len(l.buf); i++ {
-		if l.buf[i].empty() {
+		if l.buf[i].released() {
 			a = l.buf[i]
 			break
 		}
@@ -114,7 +114,7 @@ func (l *arenaList) recycle(lo *arena) int {
 	var c int
 	a := l.act().next()
 	for a != nil {
-		if !a.empty() && a.h.Len > 0 {
+		if !a.empty() {
 			a.reset()
 			c++
 		}
