@@ -87,18 +87,34 @@ func (l *arenaList) recycle(lo *arena) int {
 	if lo == nil {
 		return 0
 	}
-	head, tail := l.head(), l.tail()
+
+	// | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+	//   ^       ^           ^               ^
+	//   h       l           a               t
+	// l (lo) is a last arena contains only expired entries.
+
+	oh, ot := l.head(), l.tail()
 	l.setHead(lo.next())
 	l.head().setPrev(nil)
 	l.setTail(lo)
-	head.setPrev(tail)
-	tail.setNext(head)
+	oh.setPrev(ot)
+	ot.setNext(oh)
 	l.tail().setNext(nil)
 
+	// | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0 | 1 | 2 |
+	//   ^       ^                           ^
+	//   h       a                           t
+	// Arena #3 contains at least one unexpired entry, so it became new h (head).
+	// Arena #2 became new t (tail).
+	// Recycle end.
+
+	// Clear all arenas after actual:
+	// * [6..9] - potentially empty, but reset them anyway
+	// * [0..2] - contains expired entries, so empty them
 	var c int
-	a := head
+	a := l.act().next()
 	for a != nil {
-		if !a.empty() {
+		if !a.empty() && a.h.Len > 0 {
 			a.reset()
 			c++
 		}
