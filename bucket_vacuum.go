@@ -46,8 +46,8 @@ func (b *bucket) vacuum() error {
 	r := int(math.Floor(float64(c) * b.config.VacuumRatio))
 	a = b.arena.tail()
 	c = 0
-	for i := 0; i < r; i++ {
-		if !a.empty() {
+	for c < r {
+		if !a.released() {
 			a.release()
 			b.mw().Release(b.ids, b.ac32())
 			b.mw().ArenaRelease(b.ids)

@@ -25,7 +25,7 @@ func (l *arenaList) len() int {
 // Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
 func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	for i := 0; i < len(l.buf); i++ {
-		if l.buf[i].empty() {
+		if l.buf[i].released() {
 			a = l.buf[i]
 			break
 		}
@@ -87,16 +87,49 @@ func (l *arenaList) recycle(lo *arena) int {
 	if lo == nil {
 		return 0
 	}
-	head, tail := l.head(), l.tail()
+
+	// Old arena sequence:
+	// ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+	// │ 0 │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │ 8 │ 9 │
+	// └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘
+	//   ▲       ▲           ▲               ▲
+	//   │       │           │               │
+	//   head    │           │               │
+	//   low ────┘           │               │
+	//   actual ─────────────┘               │
+	//   tail ───────────────────────────────┘
+	// low is a last arena contains only expired entries.
+
+	oh, ot := l.head(), l.tail()
+	// Set low+1 as head since it contains at least one unexpired entry.
 	l.setHead(lo.next())
 	l.head().setPrev(nil)
+	// low became new tail.
 	l.setTail(lo)
-	head.setPrev(tail)
-	tail.setNext(head)
+	// Old head previous arena became old tail.
+	oh.setPrev(ot)
+	// Old tail next arena became old head.
+	ot.setNext(oh)
 	l.tail().setNext(nil)
 
+	// New sequence:
+	// ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+	// │ 3 │ 4 │ 5 │ 6 │ 7 │ 8 │ 9 │ 0 │ 1 │ 2 │
+	// └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘
+	//   ▲       ▲                           ▲
+	//   │       │                           │
+	//   head    │                           │
+	//   actual ─┘                           │
+	//   tail ───────────────────────────────┘
+	// Arena #3 contains at least one unexpired entry, so it became new head.
+	// Arena #2 became new tail.
+	// Recycle end.
+
+	// Clear all arenas after actual:
+	// * [6..9] - potentially empty, but reset them anyway
+	// * [0..2] - contains expired entries, so empty them
 	var c int
-	a := head
+	a := l.act().next()
 	for a != nil {
 		if !a.empty() {
 			a.reset()
