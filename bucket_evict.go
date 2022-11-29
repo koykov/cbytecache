@@ -58,6 +58,6 @@ func (b *bucket) evictRange(z int) {
 
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
-	b.mw().Evict(b.ids, e.length)
+	b.mw().Evict(b.ids)
 	delete(b.index, e.hash)
 }
