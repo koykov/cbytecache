@@ -23,7 +23,7 @@ func (l *arenaList) len() int {
 // Alloc new arena.
 //
 // Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
-func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
+func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena) {
 	for i := 0; i < len(l.buf); i++ {
 		if l.buf[i].released() {
 			a = l.buf[i]
@@ -33,7 +33,6 @@ func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena, ok bool) {
 	if a == nil {
 		a = &arena{id: uint32(l.len())}
 		l.buf = append(l.buf, a)
-		ok = true
 	}
 	a.h = cbyte.InitHeader(0, int(size))
 	a.setPrev(prev)
@@ -83,9 +82,9 @@ func (l *arenaList) tail() *arena {
 // Recycle arenas using lo as starting arena.
 //
 // After recycle arenas contains unexpired entries will shift to the head, all other arenas will shift to the end.
-func (l *arenaList) recycle(lo *arena) int {
+func (l *arenaList) recycle(lo *arena) {
 	if lo == nil {
-		return 0
+		return
 	}
 
 	// Old arena sequence:
@@ -123,19 +122,28 @@ func (l *arenaList) recycle(lo *arena) int {
 	//   tail ───────────────────────────────┘
 	// Arena #3 contains at least one unexpired entry, so it became new head.
 	// Arena #2 became new tail.
-	// Recycle end.
-
-	// Clear all arenas after actual:
-	// * [6..9] - potentially empty, but reset them anyway
+	//
+	// Arenas schema:
+	// * [6..9] - potentially empty, but they will reset anyway
 	// * [0..2] - contains expired entries, so empty them
-	var c int
-	a := l.act().next()
-	for a != nil {
-		if !a.empty() {
-			a.reset()
-			c++
+	//
+	// Recycle end.
+}
+
+// todo remove me
+func (l *arenaList) print() {
+	b := l.head()
+	for b != nil {
+		if l.act() != nil && b.id == l.act().id {
+			print("A")
+		} else if b.empty() {
+			print("E")
+		} else if b.released() {
+			print("R")
+		} else {
+			print("F")
 		}
-		a = a.next()
+		b = b.next()
 	}
-	return c
+	print("\n")
 }

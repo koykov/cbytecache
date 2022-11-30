@@ -122,10 +122,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 
 	// Init alloc.
 	if b.arena.len() == 0 {
-		a, ok1 := b.arena.alloc(nil, b.as())
+		a := b.arena.alloc(nil, b.as())
 		b.arena.setHead(a).setAct(a)
-		b.mw().Alloc(b.ids, b.ac32())
-		b.mw().ArenaAlloc(b.ids, ok1)
+		b.mw().Alloc(b.ids)
 		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
@@ -151,7 +150,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			prev := a
 			a = a.next()
 			b.arena.setAct(a)
-			b.mw().ArenaFill(b.ids)
+			b.mw().Fill(b.ids)
 			// Alloc new arena if needed.
 			if a == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
@@ -161,10 +160,9 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
-				var ok1 bool
-				a, ok1 = b.arena.alloc(prev, b.as())
-				b.mw().Alloc(b.ids, b.ac32())
-				b.mw().ArenaAlloc(b.ids, ok1)
+				a = b.arena.alloc(prev, b.as())
+				b.arena.print()
+				b.mw().Alloc(b.ids)
 				prev.setNext(a)
 				b.arena.setAct(a).setTail(a)
 				b.size.snap(snapAlloc, b.ac32())
@@ -189,7 +187,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)
-	b.mw().Set(b.ids, pl, b.nowT().Sub(stm))
+	b.mw().Set(b.ids, b.nowT().Sub(stm))
 	return ErrOK
 }
 
@@ -318,16 +316,17 @@ func (b *bucket) bulkEvict() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	return b.bulkEvictLF()
+	return b.bulkEvictLF(false)
 }
 
-func (b *bucket) bulkEvictLF() error {
-	if b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
+func (b *bucket) bulkEvictLF(force bool) error {
+	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
 		return ErrOK
 	}
 
 	defer func() {
 		b.lastEvc = b.nowT()
+		b.flushMetricsLF()
 	}()
 
 	el := b.elen()
@@ -369,9 +368,17 @@ func (b *bucket) bulkEvictLF() error {
 	// Recycle arenas.
 	wg.Add(1)
 	go func() {
-		c := b.arena.recycle(lo1)
-		for i := 0; i < c; i++ {
-			b.mw().ArenaReset(b.ids)
+		b.arena.recycle(lo1)
+
+		var c int
+		a := b.arena.act().next()
+		for a != nil {
+			if !a.empty() {
+				a.reset()
+				b.mw().Reset(b.ids)
+				c++
+			}
+			a = a.next()
 		}
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict arena %d", b.idx, c)
@@ -436,7 +443,7 @@ func (b *bucket) release() error {
 		for a != nil {
 			a.release()
 			a = a.next()
-			b.mw().Release(b.ids, b.ac32())
+			b.mw().Release(b.ids)
 			b.size.snap(snapRelease, b.ac32())
 		}
 		b.arena.setHead(nil).setAct(nil).setTail(nil)
@@ -445,6 +452,21 @@ func (b *bucket) release() error {
 	wg.Wait()
 
 	return ErrOK
+}
+
+func (b *bucket) flushMetricsLF() {
+	var t, u, f uint32
+	a := b.arena.head()
+	for a != nil {
+		t++
+		if a.empty() {
+			f++
+		} else {
+			u++
+		}
+		a = a.next()
+	}
+	b.mw().ArenaMap(b.ids, t, u, f, b.ac32())
 }
 
 func (b *bucket) checkStatus() error {

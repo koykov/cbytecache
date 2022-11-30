@@ -27,30 +27,30 @@ func (b *bucket) vacuum() error {
 			b.l().Printf("bucket #%d: vacuum finished", b.idx)
 		}
 		b.lastVac = b.nowT()
+		b.flushMetricsLF()
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	if b.nowT().Sub(b.lastEvc) > b.config.EvictInterval/10*9 {
-		if err := b.bulkEvictLF(); err != nil {
-			return err
-		}
+	if err := b.bulkEvictLF(true); err != nil {
+		return err
 	}
 
-	var c int
+	var t int
 	a := b.arena.act().next()
 	for a != nil {
+		if !a.released() {
+			t++
+		}
 		a = a.next()
-		c++
 	}
-	r := int(math.Floor(float64(c) * b.config.VacuumRatio))
+	r := int(math.Floor(float64(t) * b.config.VacuumRatio))
 	a = b.arena.tail()
-	c = 0
+	c := 0
 	for c < r {
 		if !a.released() {
 			a.release()
-			b.mw().Release(b.ids, b.ac32())
-			b.mw().ArenaRelease(b.ids)
+			b.mw().Release(b.ids)
 		}
 		tail := a
 		a = a.prev()
