@@ -161,7 +161,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					return ErrNoSpace
 				}
 				a = b.arena.alloc(prev, b.as())
-				b.arena.print()
 				b.mw().Alloc(b.ids)
 				prev.setNext(a)
 				b.arena.setAct(a).setTail(a)
@@ -338,10 +337,9 @@ func (b *bucket) bulkEvictLF(force bool) error {
 	now := b.now()
 	_ = entry[el-1]
 	z := sort.Search(int(el), func(i int) bool {
-		return now <= entry[i].expire
+		return now > entry[i].expire
 	})
-
-	if z == 0 {
+	if z == 0 || z == int(el) {
 		return ErrOK
 	}
 
