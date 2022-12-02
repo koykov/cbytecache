@@ -180,7 +180,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		aptr:   startArena.ptr(),
 	}
 	if entry.expire == 0 {
-		entry.expire = b.now() + uint32(b.config.ExpireInterval)/1e9
+		entry.expire = uint32(b.config.Clock.Now().Add(b.config.ExpireInterval).Unix())
 	}
 	b.entry = append(b.entry, entry)
 	b.index[h] = b.elen() - 1
@@ -337,7 +337,7 @@ func (b *bucket) bulkEvictLF(force bool) error {
 	now := b.now()
 	_ = entry[el-1]
 	z := sort.Search(int(el), func(i int) bool {
-		return now > entry[i].expire
+		return now <= entry[i].expire
 	})
 	if z == 0 || z == int(el) {
 		return ErrOK
@@ -360,6 +360,9 @@ func (b *bucket) bulkEvictLF(force bool) error {
 	wg.Add(1)
 	go func() {
 		b.evictRange(z)
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: evict entry %d", b.idx, z)
+		}
 		wg.Done()
 	}()
 
