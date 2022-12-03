@@ -3,11 +3,10 @@ package cbytecache
 import "time"
 
 type MetricsWriter interface {
-	Alloc(bucket string)
-	Fill(bucket string)
-	Reset(bucket string)
-	Release(bucket string)
-	ArenaMap(bucket string, total, used, free, size uint32)
+	Alloc(bucket string, size uint32)
+	Fill(bucket string, size uint32)
+	Reset(bucket string, size uint32)
+	Release(bucket string, size uint32)
 	Set(bucket string, dur time.Duration)
 	Hit(bucket string, dur time.Duration)
 	Evict(bucket string)
