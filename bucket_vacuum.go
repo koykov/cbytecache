@@ -16,15 +16,12 @@ func (b *bucket) vacuum() error {
 		return err
 	}
 
-	if b.l() != nil {
-		b.l().Printf("bucket #%d: vacuum started", b.idx)
-	}
-
+	var c int
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
 		if b.l() != nil {
-			b.l().Printf("bucket #%d: vacuum finished", b.idx)
+			b.l().Printf("bucket #%d: vacuum %d arenas", b.idx, c)
 		}
 		b.lastVac = b.nowT()
 		b.flushMetricsLF()
@@ -32,7 +29,7 @@ func (b *bucket) vacuum() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	if err := b.bulkEvictLF(true); err != nil {
+	if _, _, err := b.bulkEvictLF(true); err != nil {
 		return err
 	}
 
@@ -46,7 +43,6 @@ func (b *bucket) vacuum() error {
 	}
 	r := int(math.Floor(float64(t) * b.config.VacuumRatio))
 	a = b.arena.tail()
-	c := 0
 	for c < r {
 		if !a.released() {
 			a.release()
@@ -60,9 +56,6 @@ func (b *bucket) vacuum() error {
 		c++
 	}
 	b.arena.setTail(a)
-	if b.l() != nil {
-		b.l().Printf("bucket #%d: vacuum arena len %d", b.idx, c)
-	}
 
 	return ErrOK
 }

@@ -296,31 +296,30 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	return p, pl, err
 }
 
-func (b *bucket) bulkEvict() error {
-	if err := b.checkStatus(); err != nil {
-		return err
+func (b *bucket) bulkEvict() (err error) {
+	if err = b.checkStatus(); err != nil {
+		return
 	}
 
-	if b.l() != nil {
-		b.l().Printf("bucket #%d: bulk evict started", b.idx)
-	}
-
+	var ac, ec int
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
 		if b.l() != nil {
-			b.l().Printf("bucket #%d: bulk evict finished", b.idx)
+			b.l().Printf("bucket #%d: evict %d entries and free up %d arenas", b.idx, ec, ac)
 		}
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
-	return b.bulkEvictLF(false)
+	ac, ec, err = b.bulkEvictLF(false)
+	return
 }
 
-func (b *bucket) bulkEvictLF(force bool) error {
+func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
+	err = ErrOK
 	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
-		return ErrOK
+		return
 	}
 
 	defer func() {
@@ -330,7 +329,7 @@ func (b *bucket) bulkEvictLF(force bool) error {
 
 	el := b.elen()
 	if el == 0 {
-		return ErrOK
+		return
 	}
 
 	entry := b.entry
@@ -340,8 +339,9 @@ func (b *bucket) bulkEvictLF(force bool) error {
 		return now <= entry[i].expire
 	})
 	if z == 0 || z == int(el) {
-		return ErrOK
+		return
 	}
+	ec = z
 
 	// Last arena contains unexpired entries.
 	lo := b.entry[z-1].arena()
@@ -360,9 +360,6 @@ func (b *bucket) bulkEvictLF(force bool) error {
 	wg.Add(1)
 	go func() {
 		b.evictRange(z)
-		if b.l() != nil {
-			b.l().Printf("bucket #%d: evict entry %d", b.idx, z)
-		}
 		wg.Done()
 	}()
 
@@ -371,25 +368,21 @@ func (b *bucket) bulkEvictLF(force bool) error {
 	go func() {
 		b.arena.recycle(lo1)
 
-		var c int
 		a := b.arena.act().next()
 		for a != nil {
 			if !a.empty() {
 				a.reset()
 				b.mw().Reset(b.ids)
-				c++
+				ac++
 			}
 			a = a.next()
-		}
-		if b.l() != nil {
-			b.l().Printf("bucket #%d: evict arena %d", b.idx, c)
 		}
 		wg.Done()
 	}()
 
 	wg.Wait()
 
-	return ErrOK
+	return
 }
 
 func (b *bucket) reset() error {
