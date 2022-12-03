@@ -129,21 +129,3 @@ func (l *arenaList) recycle(lo *arena) {
 	//
 	// Recycle end.
 }
-
-// todo remove me
-func (l *arenaList) print() {
-	b := l.head()
-	for b != nil {
-		if l.act() != nil && b.id == l.act().id {
-			print("A")
-		} else if b.empty() {
-			print("E")
-		} else if b.released() {
-			print("R")
-		} else {
-			print("F")
-		}
-		b = b.next()
-	}
-	print("\n")
-}

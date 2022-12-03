@@ -319,7 +319,7 @@ func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allo
 				if idx, ok := <-bucketQueue; ok {
 					bucket := c.buckets[idx]
 					if err := fn(bucket); err != nil && c.l() != nil {
-						c.l().Printf("bucket %d %s failed with error: %s\n", idx, op, err.Error())
+						c.l().Printf("bucket #%d: %s failed with error '%s'\n", idx, op, err.Error())
 					}
 					continue
 				}
