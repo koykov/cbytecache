@@ -25,6 +25,11 @@ func (a *arena) empty() bool {
 	return !a.released() && a.h.Len == 0
 }
 
+// Check arena if full.
+func (a *arena) full() bool {
+	return !a.released() && a.h.Len == a.h.Cap
+}
+
 // Get raw unsafe pointer of arena.
 //
 // Caution! Pointer receiver strongly required here.

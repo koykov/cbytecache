@@ -124,7 +124,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	if b.arena.len() == 0 {
 		a := b.arena.alloc(nil, b.as())
 		b.arena.setHead(a).setAct(a)
-		b.mw().Alloc(b.ids)
+		b.mw().Alloc(b.ids, b.ac32())
 		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
@@ -150,7 +150,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			prev := a
 			a = a.next()
 			b.arena.setAct(a)
-			b.mw().Fill(b.ids)
+			b.mw().Fill(b.ids, b.ac32())
 			// Alloc new arena if needed.
 			if a == nil {
 				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
@@ -161,7 +161,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					return ErrNoSpace
 				}
 				a = b.arena.alloc(prev, b.as())
-				b.mw().Alloc(b.ids)
+				b.mw().Alloc(b.ids, b.ac32())
 				prev.setNext(a)
 				b.arena.setAct(a).setTail(a)
 				b.size.snap(snapAlloc, b.ac32())
@@ -324,7 +324,6 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 
 	defer func() {
 		b.lastEvc = b.nowT()
-		b.flushMetricsLF()
 	}()
 
 	el := b.elen()
@@ -372,7 +371,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 		for a != nil {
 			if !a.empty() {
 				a.reset()
-				b.mw().Reset(b.ids)
+				b.mw().Reset(b.ids, b.ac32())
 				ac++
 			}
 			a = a.next()
@@ -409,9 +408,13 @@ func (b *bucket) release() error {
 		return err
 	}
 
+	var c int
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: release %d arenas", b.idx, c)
+		}
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
@@ -435,10 +438,15 @@ func (b *bucket) release() error {
 		defer wg.Done()
 		a := b.arena.head()
 		for a != nil {
+			if a.full() {
+				a.reset()
+				b.mw().Reset(b.ids, b.ac32())
+			}
+			c++
 			a.release()
-			a = a.next()
-			b.mw().Release(b.ids)
+			b.mw().Release(b.ids, b.ac32())
 			b.size.snap(snapRelease, b.ac32())
+			a = a.next()
 		}
 		b.arena.setHead(nil).setAct(nil).setTail(nil)
 	}()
@@ -446,21 +454,6 @@ func (b *bucket) release() error {
 	wg.Wait()
 
 	return ErrOK
-}
-
-func (b *bucket) flushMetricsLF() {
-	var t, u, f uint32
-	a := b.arena.head()
-	for a != nil {
-		t++
-		if a.empty() {
-			f++
-		} else {
-			u++
-		}
-		a = a.next()
-	}
-	b.mw().ArenaMap(b.ids, t, u, f, b.ac32())
 }
 
 func (b *bucket) checkStatus() error {

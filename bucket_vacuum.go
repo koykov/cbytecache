@@ -24,7 +24,6 @@ func (b *bucket) vacuum() error {
 			b.l().Printf("bucket #%d: vacuum %d arenas", b.idx, c)
 		}
 		b.lastVac = b.nowT()
-		b.flushMetricsLF()
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
@@ -46,7 +45,7 @@ func (b *bucket) vacuum() error {
 	for c < r {
 		if !a.released() {
 			a.release()
-			b.mw().Release(b.ids)
+			b.mw().Release(b.ids, b.ac32())
 		}
 		tail := a
 		a = a.prev()
