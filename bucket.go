@@ -337,7 +337,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	z := sort.Search(int(el), func(i int) bool {
 		return now <= entry[i].expire
 	})
-	if z == 0 || z == int(el) {
+	if z == 0 {
 		return
 	}
 	ec = z

@@ -22,7 +22,7 @@ func TestExpire(t *testing.T) {
 			t.Fatal(err)
 		}
 		// Wait for expiration.
-		conf.Clock.Jump(time.Minute)
+		conf.Clock.Jump(time.Minute + time.Second)
 		time.Sleep(time.Millisecond * 5)
 		if _, err = cache.Get("foo"); err == nil {
 			err = errors.New(`entry got from the cache but expects "not found" error`)
@@ -58,7 +58,7 @@ func TestExpire(t *testing.T) {
 			t.Error("wrong cache size after set: need", fullSize, "got", size)
 		}
 		// Wait for expiration.
-		conf.Clock.Jump(time.Minute)
+		conf.Clock.Jump(time.Minute + time.Second)
 		time.Sleep(time.Millisecond * 5)
 		conf.Clock.Stop()
 		if size := cache.Size(); size.Used() != expectSize {

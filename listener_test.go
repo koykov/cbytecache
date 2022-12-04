@@ -63,7 +63,7 @@ func TestListener(t *testing.T) {
 			}
 		}
 		// Wait for expiration.
-		conf.Clock.Jump(time.Minute)
+		conf.Clock.Jump(time.Minute + time.Second)
 		time.Sleep(time.Millisecond * 5)
 
 		// Check counters.

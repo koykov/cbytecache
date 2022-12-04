@@ -36,31 +36,13 @@ func (b *bucket) bulkDump() error {
 		return now <= entry[i].expire
 	})
 
-	if z == 0 {
+	if z == int(el) {
 		return ErrOK
 	}
 
-	if z < 256 {
-		_ = b.entry[el-1]
-		for i := 0; i < z; i++ {
-			b.dump(&b.entry[i])
-		}
-	} else {
-		z8 := z - z%8
-		_ = b.entry[el-1]
-		for i := 0; i < z8; i += 8 {
-			b.dump(&b.entry[i])
-			b.dump(&b.entry[i+1])
-			b.dump(&b.entry[i+2])
-			b.dump(&b.entry[i+3])
-			b.dump(&b.entry[i+4])
-			b.dump(&b.entry[i+5])
-			b.dump(&b.entry[i+6])
-			b.dump(&b.entry[i+7])
-		}
-		for i := z8; i < z; i++ {
-			b.dump(&b.entry[i])
-		}
+	_ = b.entry[el-1]
+	for i := z; i < int(el); i++ {
+		b.dump(&b.entry[i])
 	}
 
 	return ErrOK
