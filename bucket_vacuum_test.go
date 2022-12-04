@@ -29,7 +29,7 @@ func TestVacuum(t *testing.T) {
 	}
 	assertSize(t, cache.Size(), CacheSize{264224768, 264222333, 2435})
 	// Wait for expiration.
-	conf.Clock.Jump(time.Minute)
+	conf.Clock.Jump(time.Minute + time.Second)
 	time.Sleep(time.Millisecond * 5)
 	assertSize(t, cache.Size(), CacheSize{264224768, 0, 264224768})
 	// Wait for vacuum.

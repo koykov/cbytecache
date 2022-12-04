@@ -33,7 +33,7 @@ func (b *bucket) vacuum() error {
 	}
 
 	var t int
-	a := b.arena.act().next()
+	a := b.queue.act().next()
 	for a != nil {
 		if !a.released() {
 			t++
@@ -41,7 +41,7 @@ func (b *bucket) vacuum() error {
 		a = a.next()
 	}
 	r := int(math.Floor(float64(t) * b.config.VacuumRatio))
-	a = b.arena.tail()
+	a = b.queue.tail()
 	for c < r {
 		if !a.released() {
 			a.release()
@@ -54,7 +54,7 @@ func (b *bucket) vacuum() error {
 		b.size.snap(snapRelease, b.ac32())
 		c++
 	}
-	b.arena.setTail(a)
+	b.queue.setTail(a)
 
 	return ErrOK
 }

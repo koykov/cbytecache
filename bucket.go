@@ -3,6 +3,7 @@ package cbytecache
 import (
 	"encoding/binary"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,13 +30,27 @@ type bucket struct {
 	entry []entry
 
 	// Memory arenas.
-	arena arenaList
+	queue arenaQueue
 
 	lastEvc, lastVac time.Time
 
 	// Index of current arena available to write data.
 	// todo remove me
 	arenaIdx uint32
+}
+
+// Make and init new bucket.
+func newBucket(id uint32, config *Config, maxCap uint64) *bucket {
+	b := bucket{
+		config: config,
+		idx:    id,
+		ids:    strconv.Itoa(int(id)),
+		maxCap: uint32(maxCap),
+		buf:    cbytebuf.NewCByteBuf(),
+		index:  make(map[uint64]uint32),
+	}
+	b.queue.setHead(nil).setAct(nil).setTail(nil)
+	return &b
 }
 
 // Set p to bucket by h hash.
@@ -121,14 +136,14 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	}
 
 	// Init alloc.
-	if b.arena.len() == 0 {
-		a := b.arena.alloc(nil, b.as())
-		b.arena.setHead(a).setAct(a)
+	if b.queue.len() == 0 {
+		a := b.queue.alloc(nil, b.as())
+		b.queue.setHead(a).setAct(a)
 		b.mw().Alloc(b.ids, b.ac32())
 		b.size.snap(snapAlloc, b.ac32())
 	}
 	// Get current arena.
-	a := b.arena.act()
+	a := b.queue.act()
 	startArena := a
 	arenaOffset, arenaRest := a.offset(), a.rest()
 	rest := uint32(len(p))
@@ -149,7 +164,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			// Switch to the next arena.
 			prev := a
 			a = a.next()
-			b.arena.setAct(a)
+			b.queue.setAct(a)
 			b.mw().Fill(b.ids, b.ac32())
 			// Alloc new arena if needed.
 			if a == nil {
@@ -160,10 +175,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
-				a = b.arena.alloc(prev, b.as())
+				a = b.queue.alloc(prev, b.as())
 				b.mw().Alloc(b.ids, b.ac32())
 				prev.setNext(a)
-				b.arena.setAct(a).setTail(a)
+				b.queue.setAct(a).setTail(a)
 				b.size.snap(snapAlloc, b.ac32())
 			}
 			// Calculate rest of bytes to write.
@@ -172,17 +187,18 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	}
 
 	// Create and register new entry.
-	entry := entry{
+	e1 := entry{
 		hash:   h,
 		offset: arenaOffset,
 		length: pl,
 		expire: expire,
-		aptr:   startArena.ptr(),
+		aid:    startArena.id,
+		lp:     b.queue.ptr(),
 	}
-	if entry.expire == 0 {
-		entry.expire = uint32(b.config.Clock.Now().Add(b.config.ExpireInterval).Unix())
+	if e1.expire == 0 {
+		e1.expire = uint32(b.config.Clock.Now().Add(b.config.ExpireInterval).Unix())
 	}
-	b.entry = append(b.entry, entry)
+	b.entry = append(b.entry, e1)
 	b.index[h] = b.elen() - 1
 
 	b.size.snap(snapSet, pl)
@@ -296,6 +312,7 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	return p, pl, err
 }
 
+// Perform bulk eviction operation.
 func (b *bucket) bulkEvict() (err error) {
 	if err = b.checkStatus(); err != nil {
 		return
@@ -337,7 +354,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	z := sort.Search(int(el), func(i int) bool {
 		return now <= entry[i].expire
 	})
-	if z == 0 || z == int(el) {
+	if z == 0 {
 		return
 	}
 	ec = z
@@ -365,9 +382,9 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	// Recycle arenas.
 	wg.Add(1)
 	go func() {
-		b.arena.recycle(lo1)
+		b.queue.recycle(lo1)
 
-		a := b.arena.act().next()
+		a := b.queue.act().next()
 		for a != nil {
 			if !a.empty() {
 				a.reset()
@@ -436,7 +453,7 @@ func (b *bucket) release() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		a := b.arena.head()
+		a := b.queue.head()
 		for a != nil {
 			if a.full() {
 				a.reset()
@@ -448,7 +465,7 @@ func (b *bucket) release() error {
 			b.size.snap(snapRelease, b.ac32())
 			a = a.next()
 		}
-		b.arena.setHead(nil).setAct(nil).setTail(nil)
+		b.queue.setHead(nil).setAct(nil).setTail(nil)
 	}()
 
 	wg.Wait()
@@ -477,7 +494,7 @@ func (b *bucket) nowT() time.Time {
 }
 
 func (b *bucket) alen() uint32 {
-	return uint32(b.arena.len())
+	return uint32(b.queue.len())
 }
 
 func (b *bucket) elen() uint32 {

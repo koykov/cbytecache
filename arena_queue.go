@@ -4,85 +4,115 @@ import (
 	"unsafe"
 
 	"github.com/koykov/cbyte"
-	"github.com/koykov/indirect"
 )
 
-// Container of bucket's arenas.
-type arenaList struct {
-	// Head, actual and tail arenas pointers.
-	head_, act_, tail_ uintptr
+// Circular queue of bucket's arenas.
+type arenaQueue struct {
+	// Head, actual and tail arenas indexes pointers.
+	// Manipulation of these pointers implements circular queue patterns.
+	head_, act_, tail_ int64
 	// Arenas list storage.
-	buf []*arena
+	buf []arena
 }
 
 // Get length of arenas storage.
-func (l *arenaList) len() int {
-	return len(l.buf)
+func (q *arenaQueue) len() int {
+	return len(q.buf)
+}
+
+// Get raw unsafe pointer of arena list.
+//
+// Caution! Pointer receiver strongly required here.
+func (q *arenaQueue) ptr() uintptr {
+	uptr := unsafe.Pointer(q)
+	return uintptr(uptr)
 }
 
 // Alloc new arena.
 //
 // Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
-func (l *arenaList) alloc(prev *arena, size MemorySize) (a *arena) {
-	for i := 0; i < len(l.buf); i++ {
-		if l.buf[i].released() {
-			a = l.buf[i]
+func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
+	for i := 0; i < len(q.buf); i++ {
+		if q.buf[i].released() {
+			a = &q.buf[i]
 			break
 		}
 	}
 	if a == nil {
-		a = &arena{id: uint32(l.len())}
-		l.buf = append(l.buf, a)
+		a1 := arena{
+			id: uint32(q.len()),
+			qp: q.ptr(),
+			p:  -1,
+			n:  -1,
+		}
+		q.buf = append(q.buf, a1)
+		a = &q.buf[q.len()-1]
 	}
 	a.h = cbyte.InitHeader(0, int(size))
 	a.setPrev(prev)
 	if prev != nil {
 		prev.setNext(a)
 	}
-	l.setTail(a)
+	q.setTail(a)
 	return
 }
 
 // Set head arena.
-func (l *arenaList) setHead(head *arena) *arenaList {
-	l.head_ = uintptr(unsafe.Pointer(head))
-	return l
+func (q *arenaQueue) setHead(head *arena) *arenaQueue {
+	q.head_ = -1
+	if head != nil {
+		q.head_ = int64(head.id)
+	}
+	return q
 }
 
 // Set actual arena.
-func (l *arenaList) setAct(act *arena) *arenaList {
-	l.act_ = uintptr(unsafe.Pointer(act))
-	return l
+func (q *arenaQueue) setAct(act *arena) *arenaQueue {
+	q.act_ = -1
+	if act != nil {
+		q.act_ = int64(act.id)
+	}
+	return q
 }
 
 // Set tail arena.
-func (l *arenaList) setTail(tail *arena) *arenaList {
-	l.tail_ = uintptr(unsafe.Pointer(tail))
-	return l
+func (q *arenaQueue) setTail(tail *arena) *arenaQueue {
+	q.tail_ = -1
+	if tail != nil {
+		q.tail_ = int64(tail.id)
+	}
+	return q
 }
 
 // Get head arena.
-func (l *arenaList) head() *arena {
-	raw := indirect.ToUnsafePtr(l.head_)
-	return (*arena)(raw)
+func (q *arenaQueue) head() *arena {
+	return q.get(q.head_)
 }
 
 // Get actual arena.
-func (l *arenaList) act() *arena {
-	raw := indirect.ToUnsafePtr(l.act_)
-	return (*arena)(raw)
+func (q *arenaQueue) act() *arena {
+	return q.get(q.act_)
 }
 
 // Get tail arena.
-func (l *arenaList) tail() *arena {
-	raw := indirect.ToUnsafePtr(l.tail_)
-	return (*arena)(raw)
+func (q *arenaQueue) tail() *arena {
+	return q.get(q.tail_)
+}
+
+func (q *arenaQueue) get(id int64) *arena {
+	if id == -1 {
+		return nil
+	}
+	if id >= int64(len(q.buf)) {
+		return nil
+	}
+	return &q.buf[id]
 }
 
 // Recycle arenas using lo as starting arena.
 //
 // After recycle arenas contains unexpired entries will shift to the head, all other arenas will shift to the end.
-func (l *arenaList) recycle(lo *arena) {
+func (q *arenaQueue) recycle(lo *arena) {
 	if lo == nil {
 		return
 	}
@@ -99,17 +129,17 @@ func (l *arenaList) recycle(lo *arena) {
 	//   tail ───────────────────────────────┘
 	// low is a last arena contains only expired entries.
 
-	oh, ot := l.head(), l.tail()
+	oh, ot := q.head(), q.tail()
 	// Set low+1 as head since it contains at least one unexpired entry.
-	l.setHead(lo.next())
-	l.head().setPrev(nil)
+	q.setHead(lo.next())
+	q.head().setPrev(nil)
 	// low became new tail.
-	l.setTail(lo)
+	q.setTail(lo)
 	// Old head previous arena became old tail.
 	oh.setPrev(ot)
 	// Old tail next arena became old head.
 	ot.setNext(oh)
-	l.tail().setNext(nil)
+	q.tail().setNext(nil)
 
 	// New sequence:
 	// ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
