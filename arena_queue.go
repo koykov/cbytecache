@@ -20,17 +20,9 @@ func (q *arenaQueue) len() int {
 	return len(q.buf)
 }
 
-// Get raw unsafe pointer of arena list.
-//
-// Caution! Pointer receiver strongly required here.
-func (q *arenaQueue) ptr() uintptr {
-	uptr := unsafe.Pointer(q)
-	return uintptr(uptr)
-}
-
 // Alloc new arena.
 //
-// Search in buf old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
+// Search in buf for old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
 func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
 	for i := 0; i < len(q.buf); i++ {
 		if q.buf[i].released() {
@@ -39,6 +31,7 @@ func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
 		}
 	}
 	if a == nil {
+		// No arena available on buf, so create new one and add in to the buf.
 		a1 := arena{
 			id: uint32(q.len()),
 			qp: q.ptr(),
@@ -48,38 +41,41 @@ func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
 		q.buf = append(q.buf, a1)
 		a = &q.buf[q.len()-1]
 	}
+	// Alloc memory.
 	a.h = cbyte.InitHeader(0, int(size))
+	// Link prev/new arena.
 	a.setPrev(prev)
 	if prev != nil {
 		prev.setNext(a)
 	}
+	// Mark new arena as tail.
 	q.setTail(a)
 	return
 }
 
 // Set head arena.
-func (q *arenaQueue) setHead(head *arena) *arenaQueue {
+func (q *arenaQueue) setHead(a *arena) *arenaQueue {
 	q.head_ = -1
-	if head != nil {
-		q.head_ = int64(head.id)
+	if a != nil {
+		q.head_ = int64(a.id)
 	}
 	return q
 }
 
 // Set actual arena.
-func (q *arenaQueue) setAct(act *arena) *arenaQueue {
+func (q *arenaQueue) setAct(a *arena) *arenaQueue {
 	q.act_ = -1
-	if act != nil {
-		q.act_ = int64(act.id)
+	if a != nil {
+		q.act_ = int64(a.id)
 	}
 	return q
 }
 
 // Set tail arena.
-func (q *arenaQueue) setTail(tail *arena) *arenaQueue {
+func (q *arenaQueue) setTail(a *arena) *arenaQueue {
 	q.tail_ = -1
-	if tail != nil {
-		q.tail_ = int64(tail.id)
+	if a != nil {
+		q.tail_ = int64(a.id)
 	}
 	return q
 }
@@ -158,4 +154,12 @@ func (q *arenaQueue) recycle(lo *arena) {
 	// * [0..2] - contains expired entries, so empty them
 	//
 	// Recycle end.
+}
+
+// Get raw unsafe pointer of arena list.
+//
+// Caution! Pointer receiver strongly required here.
+func (q *arenaQueue) ptr() uintptr {
+	uptr := unsafe.Pointer(q)
+	return uintptr(uptr)
 }
