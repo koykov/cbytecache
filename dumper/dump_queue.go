@@ -24,8 +24,8 @@ func (q *DumpQueue) Write(entry cbytecache.Entry) error {
 	return q.Enqueuer.Enqueue(cpy)
 }
 
-func (q *DumpQueue) Close() error {
-	return q.Enqueuer.Close()
+func (q *DumpQueue) Flush() error {
+	return nil
 }
 
 var _ = NewQueue

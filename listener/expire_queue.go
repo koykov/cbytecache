@@ -24,8 +24,4 @@ func (q *ExpireQueue) Listen(entry cbytecache.Entry) error {
 	return q.Enqueuer.Enqueue(cpy)
 }
 
-func (q *ExpireQueue) Close() error {
-	return q.Enqueuer.Close()
-}
-
 var _ = NewQueue

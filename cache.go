@@ -230,9 +230,6 @@ func (c *Cache) Close() error {
 		return err
 	}
 	c.config.Clock.Stop()
-	if l := c.config.ExpireListener; l != nil {
-		return l.Close()
-	}
 	return ErrOK
 }
 
@@ -248,7 +245,7 @@ func (c *Cache) dump() error {
 	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.bulkDump() }); err != nil {
 		return err
 	}
-	return c.config.DumpWriter.Close()
+	return c.config.DumpWriter.Flush()
 }
 
 func (c *Cache) load() error {
@@ -286,7 +283,7 @@ func (c *Cache) load() error {
 
 	wg.Wait()
 
-	return c.config.DumpReader.Close()
+	return nil
 }
 
 func (c *Cache) bulkExec(workers uint, op string, fn func(*bucket) error) error {

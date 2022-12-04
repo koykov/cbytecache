@@ -1,8 +1,6 @@
 package cbytecache
 
 import (
-	"io"
-
 	"github.com/koykov/fastconv"
 )
 
@@ -11,7 +9,6 @@ import (
  */
 
 type Enqueuer interface {
-	io.Closer
 	Enqueue(interface{}) error
 }
 
