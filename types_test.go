@@ -1,7 +1,6 @@
 package cbytecache
 
 import (
-	"io"
 	"testing"
 )
 
@@ -18,9 +17,7 @@ func TestTypes(t *testing.T) {
 	})
 }
 
-type testq struct {
-	io.Closer
-}
+type testq struct{}
 
 func (q testq) Enqueue(x interface{}) error {
 	e, ok := x.(Entry)

@@ -104,7 +104,7 @@ func (w *testDumpWriter) Write(entry Entry) (err error) {
 	return
 }
 
-func (w *testDumpWriter) Close() error {
+func (w *testDumpWriter) Flush() error {
 	if w.f != nil {
 		if err := w.f.Close(); err != nil {
 			return err
@@ -124,6 +124,13 @@ type testDumpReader struct {
 }
 
 func (r *testDumpReader) Read() (e Entry, err error) {
+	defer func() {
+		if err == io.EOF && r.f != nil {
+			_ = r.f.Close()
+			r.f = nil
+		}
+	}()
+
 	if r.f == nil {
 		if r.f, err = os.Open("testdata/example.bin"); err != nil {
 			return
@@ -163,14 +170,4 @@ func (r *testDumpReader) Read() (e Entry, err error) {
 	}
 	e.Expire = binary.LittleEndian.Uint32(r.buf[off:])
 	return
-}
-
-func (r *testDumpReader) Close() error {
-	if r.f != nil {
-		if err := r.f.Close(); err != nil {
-			return err
-		}
-		r.f = nil
-	}
-	return nil
 }
