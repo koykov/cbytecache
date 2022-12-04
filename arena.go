@@ -2,7 +2,6 @@ package cbytecache
 
 import (
 	"reflect"
-	"unsafe"
 
 	"github.com/koykov/cbyte"
 	"github.com/koykov/indirect"
@@ -12,7 +11,8 @@ import (
 type arena struct {
 	id   uint32
 	h    reflect.SliceHeader
-	p, n uintptr
+	p, n int64
+	qp   uintptr
 }
 
 // Check arena memory is released.
@@ -28,14 +28,6 @@ func (a *arena) empty() bool {
 // Check arena if full.
 func (a *arena) full() bool {
 	return !a.released() && a.h.Len == a.h.Cap
-}
-
-// Get raw unsafe pointer of arena.
-//
-// Caution! Pointer receiver strongly required here.
-func (a *arena) ptr() uintptr {
-	uptr := unsafe.Pointer(a)
-	return uintptr(uptr)
 }
 
 // Write b to arena.
@@ -80,38 +72,54 @@ func (a arena) rest() uint32 {
 
 // Set previous arena.
 func (a *arena) setPrev(prev *arena) *arena {
-	a.p = 0
-	if prev != nil {
-		a.p = prev.ptr()
+	q := a.indirectQueue()
+	if q == nil {
+		return nil
 	}
+	a.p = -1
+	if prev != nil {
+		a.p = int64(prev.id)
+	}
+	q.buf[a.id] = *a
 	return a
 }
 
 // Get previous arena.
 func (a *arena) prev() *arena {
-	if a.p == 0 {
+	if a.p == -1 {
 		return nil
 	}
-	raw := indirect.ToUnsafePtr(a.p)
-	return (*arena)(raw)
+	q := a.indirectQueue()
+	if q == nil {
+		return nil
+	}
+	return &q.buf[a.p]
 }
 
 // Set next arena.
 func (a *arena) setNext(next *arena) *arena {
-	a.n = 0
-	if next != nil {
-		a.n = next.ptr()
+	q := a.indirectQueue()
+	if q == nil {
+		return nil
 	}
+	a.n = -1
+	if next != nil {
+		a.n = int64(next.id)
+	}
+	q.buf[a.id] = *a
 	return a
 }
 
 // Get next arena.
 func (a *arena) next() *arena {
-	if a.n == 0 {
+	if a.n == -1 {
 		return nil
 	}
-	raw := indirect.ToUnsafePtr(a.n)
-	return (*arena)(raw)
+	q := a.indirectQueue()
+	if q == nil {
+		return nil
+	}
+	return &q.buf[a.n]
 }
 
 // Reset arena data.
@@ -127,4 +135,12 @@ func (a *arena) reset() {
 func (a *arena) release() {
 	cbyte.ReleaseHeader(a.h)
 	a.h.Data, a.h.Len, a.h.Cap = 0, 0, 0
+}
+
+func (a *arena) indirectQueue() *arenaQueue {
+	if a.qp == 0 {
+		return nil
+	}
+	raw := indirect.ToUnsafePtr(a.qp)
+	return (*arenaQueue)(raw)
 }
