@@ -27,7 +27,7 @@ func (b *bucket) bulkEvict() (err error) {
 	return
 }
 
-// Perform bulc eviction operation on lock-free mode.
+// Perform bulk eviction operation on lock-free mode.
 func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	err = ErrOK
 	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
