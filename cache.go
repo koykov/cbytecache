@@ -239,7 +239,7 @@ func (c *Cache) evict() error {
 }
 
 func (c *Cache) vacuum() error {
-	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
+	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.bulkVacuum() })
 }
 
 // Dump all cache data.

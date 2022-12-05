@@ -11,7 +11,8 @@ const (
 	VacuumRatioAggressive = .75
 )
 
-func (b *bucket) vacuum() error {
+// Perform bilk vacuum operation.
+func (b *bucket) bulkVacuum() error {
 	if err := b.checkStatus(); err != nil {
 		return err
 	}
@@ -28,6 +29,7 @@ func (b *bucket) vacuum() error {
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()
 
+	// Run eviction before dump to evaluate number of arenas possible to vacuum.
 	if _, _, err := b.bulkEvictLF(true); err != nil {
 		return err
 	}
@@ -41,6 +43,8 @@ func (b *bucket) vacuum() error {
 		a = a.next()
 	}
 	r := int(math.Floor(float64(t) * b.config.VacuumRatio))
+
+	// Vacuum r arenas starting from tail.
 	a = b.queue.tail()
 	for c < r {
 		if !a.released() {
@@ -54,6 +58,7 @@ func (b *bucket) vacuum() error {
 		b.size.snap(snapRelease, b.ac())
 		c++
 	}
+	// Register last arena as tail.
 	b.queue.setTail(a)
 
 	return ErrOK
