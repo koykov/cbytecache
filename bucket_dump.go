@@ -5,20 +5,18 @@ import (
 	"sync/atomic"
 )
 
+// Perform bulk dumping operation.
 func (b *bucket) bulkDump() error {
 	if err := b.checkStatus(); err != nil {
 		return err
 	}
 
-	if b.l() != nil {
-		b.l().Printf("bucket #%d: bulkDump write started", b.idx)
-	}
-
+	var c int
 	atomic.StoreUint32(&b.status, bucketStatusService)
 	b.mux.Lock()
 	defer func() {
 		if b.l() != nil {
-			b.l().Printf("bucket #%d: bulkDump write finished", b.idx)
+			b.l().Printf("bucket #%d: dump %d entries", b.idx, c)
 		}
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
@@ -29,25 +27,23 @@ func (b *bucket) bulkDump() error {
 		return ErrOK
 	}
 
-	entry := b.entry
+	buf := b.entry
 	now := b.now()
-	_ = entry[el-1]
+	_ = buf[el-1]
 	z := sort.Search(int(el), func(i int) bool {
-		return now <= entry[i].expire
+		return now <= buf[i].expire
 	})
 
-	if z == int(el) {
-		return ErrOK
-	}
-
-	_ = b.entry[el-1]
+	_ = buf[el-1]
 	for i := z; i < int(el); i++ {
-		b.dump(&b.entry[i])
+		b.dump(&buf[i])
+		c++
 	}
 
 	return ErrOK
 }
 
+// Perform dump operation over single entry.
 func (b *bucket) dump(e *entry) {
 	b.buf.ResetLen()
 	_ = b.buf.GrowLen(int(e.length))
@@ -55,6 +51,6 @@ func (b *bucket) dump(e *entry) {
 	if err != nil {
 		return
 	}
-	_ = b.config.DumpWriter.Write(Entry{Key: key, Body: body})
+	_, _ = b.config.DumpWriter.Write(Entry{Key: key, Body: body})
 	b.mw().Dump()
 }

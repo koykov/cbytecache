@@ -1,5 +1,102 @@
 package cbytecache
 
+import (
+	"sort"
+	"sync"
+	"sync/atomic"
+)
+
+// Perform bulk eviction operation.
+func (b *bucket) bulkEvict() (err error) {
+	if err = b.checkStatus(); err != nil {
+		return
+	}
+
+	var ac, ec int
+	atomic.StoreUint32(&b.status, bucketStatusService)
+	b.mux.Lock()
+	defer func() {
+		if b.l() != nil {
+			b.l().Printf("bucket #%d: evict %d entries and free up %d arenas", b.idx, ec, ac)
+		}
+		b.mux.Unlock()
+		atomic.StoreUint32(&b.status, bucketStatusActive)
+	}()
+
+	ac, ec, err = b.bulkEvictLF(false)
+	return
+}
+
+// Perform bulk eviction operation on lock-free mode.
+func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
+	err = ErrOK
+	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
+		return
+	}
+
+	defer func() {
+		b.lastEvc = b.nowT()
+	}()
+
+	el := b.elen()
+	if el == 0 {
+		return
+	}
+
+	buf := b.entry
+	now := b.now()
+	_ = buf[el-1]
+	z := sort.Search(int(el), func(i int) bool {
+		return now <= buf[i].expire
+	})
+	if z == 0 {
+		return
+	}
+	ec = z
+
+	// Last arena contains unexpired entries.
+	lo := buf[z-1].arena()
+	// Previous arena must contain only expired entries.
+	lo1 := lo.prev()
+
+	if b.config.ExpireListener != nil {
+		// Call expire listener for all expired entries.
+		b.expireRange(z)
+	}
+
+	// Async evict/recycle.
+	var wg sync.WaitGroup
+
+	// Evict all expired entries.
+	wg.Add(1)
+	go func() {
+		b.evictRange(z)
+		wg.Done()
+	}()
+
+	// Recycle arenas.
+	wg.Add(1)
+	go func() {
+		b.queue.recycle(lo1)
+		// Reset all arenas after actual.
+		a := b.queue.act().next()
+		for a != nil {
+			if !a.empty() {
+				a.reset()
+				b.mw().Reset(b.ids, b.ac())
+				ac++
+			}
+			a = a.next()
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return
+}
+
+// Evict all entries on range [0..z).
 func (b *bucket) evictRange(z int) {
 	el := b.elen()
 	if z < 256 {
@@ -56,6 +153,7 @@ func (b *bucket) evictRange(z int) {
 	}
 }
 
+// Perform evict operation over single entry.
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
 	b.mw().Evict(b.ids)

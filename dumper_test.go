@@ -77,15 +77,15 @@ type testDumpWriter struct {
 	n int
 }
 
-func (w *testDumpWriter) Write(entry Entry) (err error) {
+func (w *testDumpWriter) Write(entry Entry) (n int, err error) {
 	if w.f == nil {
 		w.n = 0
 		var fn []byte
 		if fn, err = clock.Format("testdata/test--%Y-%m-%d--%H-%M-%S--%N.bin", time.Now()); err != nil {
-			return err
+			return
 		}
 		if w.f, err = os.Create(string(fn)); err != nil {
-			return err
+			return
 		}
 	}
 	var buf []byte
@@ -98,7 +98,6 @@ func (w *testDumpWriter) Write(entry Entry) (err error) {
 	buf = bytealg.GrowDelta(buf, 4)
 	binary.LittleEndian.PutUint32(buf[len(buf)-4:], entry.Expire)
 
-	var n int
 	n, err = w.f.Write(buf)
 	w.n += n
 	return

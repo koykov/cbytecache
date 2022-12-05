@@ -18,100 +18,100 @@ type Cache struct {
 }
 
 // New makes cache instance according config.
-func New(config *Config) (*Cache, error) {
-	if config == nil {
+func New(conf *Config) (*Cache, error) {
+	if conf == nil {
 		return nil, ErrBadConfig
 	}
 	// Config protection.
-	config = config.Copy()
+	conf = conf.Copy()
 
 	// Check mandatory params.
-	if config.Hasher == nil {
+	if conf.Hasher == nil {
 		return nil, ErrBadHasher
 	}
-	if config.Buckets == 0 || (config.Buckets&(config.Buckets-1)) != 0 {
+	if conf.Buckets == 0 || (conf.Buckets&(conf.Buckets-1)) != 0 {
 		return nil, ErrBadBuckets
 	}
 	// Check single bucket size.
-	bucketSize := uint64(config.Capacity) / uint64(config.Buckets)
-	if bucketSize > 0 && bucketSize > MaxBucketSize {
+	bktCap := uint64(conf.Capacity) / uint64(conf.Buckets)
+	if bktCap > 0 && bktCap > MaxBucketSize {
 		return nil, fmt.Errorf("%d buckets on %d cache size exceeds max bucket size %d. Reduce cache size or increase buckets count",
-			config.Buckets, config.Capacity, MaxBucketSize)
+			conf.Buckets, conf.Capacity, MaxBucketSize)
 	}
-	if config.ArenaCapacity == 0 {
-		config.ArenaCapacity = defaultArenaCapacity
+	if conf.ArenaCapacity == 0 {
+		conf.ArenaCapacity = defaultArenaCapacity
 	}
-	if bucketSize > 0 && bucketSize < uint64(config.ArenaCapacity) {
-		return nil, fmt.Errorf("bucket size must be greater than arena size %d", config.ArenaCapacity)
+	if bktCap > 0 && bktCap < uint64(conf.ArenaCapacity) {
+		return nil, fmt.Errorf("bucket size must be greater than arena size %d", conf.ArenaCapacity)
 	}
 	// Check expire interval.
-	if config.ExpireInterval < MinExpireInterval {
+	if conf.ExpireInterval < MinExpireInterval {
 		return nil, ErrExpireDur
 	}
 	// Check evict interval.
-	if config.EvictInterval == 0 {
-		config.EvictInterval = config.ExpireInterval
+	if conf.EvictInterval == 0 {
+		conf.EvictInterval = conf.ExpireInterval
 	}
 	// Check vacuum interval.
-	if config.VacuumInterval > 0 && config.VacuumInterval <= config.EvictInterval {
+	if conf.VacuumInterval > 0 && conf.VacuumInterval <= conf.EvictInterval {
 		return nil, ErrVacuumDur
 	}
-	if r := config.VacuumRatio; r <= 0 || r > 1 {
-		config.VacuumRatio = VacuumRatioModerate
+	if r := conf.VacuumRatio; r <= 0 || r > 1 {
+		conf.VacuumRatio = VacuumRatioModerate
 	}
 
-	if config.MetricsWriter == nil {
-		config.MetricsWriter = &DummyMetrics{}
+	if conf.MetricsWriter == nil {
+		conf.MetricsWriter = &DummyMetrics{}
 	}
 
-	if config.Clock == nil {
-		config.Clock = &NativeClock{}
+	if conf.Clock == nil {
+		conf.Clock = &NativeClock{}
 	}
-	if !config.Clock.Active() {
-		config.Clock.Start()
+	if !conf.Clock.Active() {
+		conf.Clock.Start()
 	}
 
 	// Init the cache and buckets.
 	c := &Cache{
-		config: config,
+		config: conf,
 		status: cacheStatusActive,
-		mask:   uint64(config.Buckets - 1),
+		mask:   uint64(conf.Buckets - 1),
 
-		maxEntrySize: uint32(bucketSize),
+		maxEntrySize: uint32(bktCap),
 	}
-	c.buckets = make([]*bucket, config.Buckets)
+	c.buckets = make([]*bucket, conf.Buckets)
 	for i := range c.buckets {
-		c.buckets[i] = newBucket(uint32(i), config, bucketSize)
+		c.buckets[i] = newBucket(uint32(i), conf, bktCap)
 	}
 
 	// Register evict schedule job.
-	if config.EvictInterval > 0 {
-		if config.EvictWorkers == 0 {
-			config.EvictWorkers = defaultEvictWorkers
+	if conf.EvictInterval > 0 {
+		if conf.EvictWorkers == 0 {
+			conf.EvictWorkers = defaultEvictWorkers
 		}
-		config.Clock.Schedule(config.EvictInterval, func() {
+		conf.Clock.Schedule(conf.EvictInterval, func() {
 			if err := c.evict(); err != nil && c.l() != nil {
 				c.l().Printf("eviction failed with error %s\n", err.Error())
 			}
 		})
 	}
 	// Register vacuum schedule job.
-	if config.VacuumInterval > 0 {
-		if config.VacuumWorkers == 0 {
-			config.VacuumWorkers = defaultVacuumWorkers
+	if conf.VacuumInterval > 0 {
+		if conf.VacuumWorkers == 0 {
+			conf.VacuumWorkers = defaultVacuumWorkers
 		}
-		config.Clock.Schedule(config.VacuumInterval, func() {
+		conf.Clock.Schedule(conf.VacuumInterval, func() {
 			if err := c.vacuum(); err != nil && c.l() != nil {
 				c.l().Printf("vacuum failed with error %s\n", err.Error())
 			}
 		})
 	}
 	// Register dump schedule job.
-	if config.DumpInterval > 0 {
-		if config.DumpWriteWorkers == 0 {
-			config.DumpWriteWorkers = defaultDumpWriteWorkers
+	if conf.DumpInterval > 0 {
+		if conf.DumpWriteWorkers == 0 {
+			conf.DumpWriteWorkers = defaultDumpWriteWorkers
 		}
-		config.Clock.Schedule(config.DumpInterval, func() {
+		conf.Clock.Schedule(conf.DumpInterval, func() {
 			if err := c.dump(); err != nil && c.l() != nil {
 				c.l().Printf("dump write failed with error %s\n", err.Error())
 			}
@@ -119,12 +119,12 @@ func New(config *Config) (*Cache, error) {
 	}
 
 	// Process dumps.
-	if config.DumpReader != nil {
-		if config.DumpReadWorkers == 0 {
-			config.DumpReadWorkers = defaultDumpReadWorkers
+	if conf.DumpReader != nil {
+		if conf.DumpReadWorkers == 0 {
+			conf.DumpReadWorkers = defaultDumpReadWorkers
 		}
-		if config.DumpReadBuffer == 0 {
-			config.DumpReadBuffer = config.DumpReadWorkers
+		if conf.DumpReadBuffer == 0 {
+			conf.DumpReadBuffer = conf.DumpReadWorkers
 		}
 		if err := c.load(); err != nil && c.l() != nil {
 			c.l().Printf("dump read failed with error %s\n", err.Error())
@@ -160,8 +160,8 @@ func (c *Cache) set(key string, data []byte) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.Hasher.Sum64(key)
-	bucket := c.buckets[h&c.mask]
-	return bucket.set(key, h, data)
+	bkt := c.buckets[h&c.mask]
+	return bkt.set(key, h, data)
 }
 
 // Internal marshaller object setter.
@@ -180,8 +180,8 @@ func (c *Cache) setm(key string, m MarshallerTo) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.Hasher.Sum64(key)
-	bucket := c.buckets[h&c.mask]
-	return bucket.setm(key, h, m)
+	bkt := c.buckets[h&c.mask]
+	return bkt.setm(key, h, m)
 }
 
 // Get gets entry bytes by key.
@@ -195,8 +195,8 @@ func (c *Cache) GetTo(dst []byte, key string) ([]byte, error) {
 		return dst, err
 	}
 	h := c.config.Hasher.Sum64(key)
-	bucket := c.buckets[h&c.mask]
-	return bucket.get(dst, h)
+	bkt := c.buckets[h&c.mask]
+	return bkt.get(dst, h)
 }
 
 // Size returns cache size snapshot. Contains total, used and free sizes.
@@ -233,21 +233,28 @@ func (c *Cache) Close() error {
 	return ErrOK
 }
 
+// Evict expired cache data.
 func (c *Cache) evict() error {
 	return c.bulkExec(c.config.EvictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }
 
+// Vacuum free cache space.
 func (c *Cache) vacuum() error {
-	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
+	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.bulkVacuum() })
 }
 
+// Dump all cache data.
 func (c *Cache) dump() error {
+	if c.config.DumpWriter == nil {
+		return ErrOK
+	}
 	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.bulkDump() }); err != nil {
 		return err
 	}
 	return c.config.DumpWriter.Flush()
 }
 
+// Load dumped data.
 func (c *Cache) load() error {
 	stream := make(chan Entry, c.config.DumpReadBuffer)
 	var wg sync.WaitGroup
@@ -257,15 +264,15 @@ func (c *Cache) load() error {
 			defer wg.Done()
 			for {
 				select {
-				case entry, ok := <-stream:
+				case e, ok := <-stream:
 					if !ok {
 						return
 					}
-					h := c.config.Hasher.Sum64(entry.Key)
-					bucket := c.buckets[h&c.mask]
-					bucket.mux.Lock()
-					_ = bucket.setLF(entry.Key, h, entry.Body, entry.Expire)
-					bucket.mux.Unlock()
+					h := c.config.Hasher.Sum64(e.Key)
+					bkt := c.buckets[h&c.mask]
+					bkt.mux.Lock()
+					_ = bkt.setLF(e.Key, h, e.Body, e.Expire)
+					bkt.mux.Unlock()
 					c.mw().Load()
 				}
 			}
@@ -273,12 +280,12 @@ func (c *Cache) load() error {
 	}
 
 	for {
-		entry, err := c.config.DumpReader.Read()
+		e, err := c.config.DumpReader.Read()
 		if err == io.EOF {
 			close(stream)
 			break
 		}
-		stream <- entry.Copy()
+		stream <- e.Copy()
 	}
 
 	wg.Wait()
@@ -286,10 +293,12 @@ func (c *Cache) load() error {
 	return nil
 }
 
+// Perform bulk fn asynchronously.
 func (c *Cache) bulkExec(workers uint, op string, fn func(*bucket) error) error {
 	return c.bulkExecWS(workers, op, fn, cacheStatusActive)
 }
 
+// Perform bulk fn asynchronously with status allow mask.
 func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allow uint32) error {
 	if err := c.checkCache(allow); err != nil {
 		return err
@@ -304,8 +313,8 @@ func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allo
 			defer wg.Done()
 			for {
 				if idx, ok := <-bucketQueue; ok {
-					bucket := c.buckets[idx]
-					if err := fn(bucket); err != nil && c.l() != nil {
+					bkt := c.buckets[idx]
+					if err := fn(bkt); err != nil && c.l() != nil {
 						c.l().Printf("bucket #%d: %s failed with error '%s'\n", idx, op, err.Error())
 					}
 					continue
@@ -329,6 +338,7 @@ func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allo
 	return ErrOK
 }
 
+// Check cache status.
 func (c *Cache) checkCache(allow uint32) error {
 	if status := atomic.LoadUint32(&c.status); status&allow == 0 {
 		if status == cacheStatusNil {
@@ -341,10 +351,19 @@ func (c *Cache) checkCache(allow uint32) error {
 	return nil
 }
 
+// Shorthand metrics writer method.
 func (c *Cache) mw() MetricsWriter {
 	return c.config.MetricsWriter
 }
 
+// Shorthand logger method.
 func (c *Cache) l() Logger {
 	return c.config.Logger
+}
+
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
 }

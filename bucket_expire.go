@@ -1,5 +1,8 @@
 package cbytecache
 
+// Mark all entries on range [0..z) as expired.
+//
+// This method has sense only if expire listener is provided in config.
 func (b *bucket) expireRange(z int) {
 	el := b.elen()
 	if z < 256 {
@@ -26,12 +29,15 @@ func (b *bucket) expireRange(z int) {
 	}
 }
 
+// Perform expire operation over single entry.
 func (b *bucket) expire(e *entry) {
+	// Get entry data (key, body and expire timestamp).
 	b.buf.ResetLen()
 	_ = b.buf.GrowLen(int(e.length))
 	key, body, err := b.getLF(b.buf.Bytes()[:0], e, dummyMetrics)
 	if err != nil {
 		return
 	}
+	// Pack entry and send it to the listener.
 	_ = b.config.ExpireListener.Listen(Entry{Key: key, Body: body})
 }

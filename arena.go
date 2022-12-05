@@ -8,11 +8,15 @@ import (
 )
 
 // Memory arena implementation.
+//
+// Arena is minimal block of cache memory. All alloc/reset/fill/release operations can manipulate only the entire arena.
 type arena struct {
-	id   uint32
-	h    reflect.SliceHeader
+	id uint32
+	h  reflect.SliceHeader
+	// Previous/next arenas indices.
 	p, n int64
-	qp   uintptr
+	// Raw queue pointer.
+	qp uintptr
 }
 
 // Check arena memory is released.
@@ -25,20 +29,15 @@ func (a *arena) empty() bool {
 	return !a.released() && a.h.Len == 0
 }
 
-// Check arena if full.
+// Check arena is full.
 func (a *arena) full() bool {
 	return !a.released() && a.h.Len == a.h.Cap
 }
 
 // Write b to arena.
 //
-// Caution! No bounds check control. External code must guarantee the safety.
+// Caution! No bounds check control. External code must guarantee bounds safety.
 func (a *arena) write(b []byte) (n int) {
-	// lo, hi := a.h.Len, a.h.Len+len(b)
-	// a.h.Len = hi
-	// buf := cbyte.Bytes(a.h)
-	// n = copy(buf[lo:hi], b)
-	// todo check stable
 	n = cbyte.Memcpy(uint64(a.h.Data), uint64(a.h.Len), b)
 	a.h.Len += n
 	return
@@ -46,7 +45,7 @@ func (a *arena) write(b []byte) (n int) {
 
 // Read bytes from arena using offset and length.
 //
-// Caution! No bounds check control. External code must guarantee the safety.
+// Caution! No bounds check control. External code must guarantee bounds safety.
 func (a *arena) read(offset, length uint32) []byte {
 	h := reflect.SliceHeader{
 		Data: a.h.Data + uintptr(offset),
@@ -137,6 +136,7 @@ func (a *arena) release() {
 	a.h.Data, a.h.Len, a.h.Cap = 0, 0, 0
 }
 
+// Indirect queue from raw pointer.
 func (a *arena) indirectQueue() *arenaQueue {
 	if a.qp == 0 {
 		return nil

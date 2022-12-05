@@ -2,7 +2,6 @@ package cbytecache
 
 import (
 	"encoding/binary"
-	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -33,10 +32,6 @@ type bucket struct {
 	queue arenaQueue
 
 	lastEvc, lastVac time.Time
-
-	// Index of current arena available to write data.
-	// todo remove me
-	arenaIdx uint32
 }
 
 // Make and init new bucket.
@@ -137,10 +132,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 
 	// Init alloc.
 	if b.queue.len() == 0 {
-		a := b.queue.alloc(nil, b.as())
+		a := b.queue.alloc(nil, b.ac())
 		b.queue.setHead(a).setAct(a)
-		b.mw().Alloc(b.ids, b.ac32())
-		b.size.snap(snapAlloc, b.ac32())
+		b.mw().Alloc(b.ids, b.ac())
+		b.size.snap(snapAlloc, b.ac())
 	}
 	// Get current arena.
 	a := b.queue.act()
@@ -165,24 +160,24 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			prev := a
 			a = a.next()
 			b.queue.setAct(a)
-			b.mw().Fill(b.ids, b.ac32())
+			b.mw().Fill(b.ids, b.ac())
 			// Alloc new arena if needed.
 			if a == nil {
-				if b.maxCap > 0 && b.alen()*b.ac32()+b.ac32() > b.maxCap {
+				if b.maxCap > 0 && b.alen()*b.ac()+b.ac() > b.maxCap {
 					if b.l() != nil {
 						b.l().Printf("bucket %d: no space on write", b.idx)
 					}
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
-				a = b.queue.alloc(prev, b.as())
-				b.mw().Alloc(b.ids, b.ac32())
+				a = b.queue.alloc(prev, b.ac())
+				b.mw().Alloc(b.ids, b.ac())
 				prev.setNext(a)
 				b.queue.setAct(a).setTail(a)
-				b.size.snap(snapAlloc, b.ac32())
+				b.size.snap(snapAlloc, b.ac())
 			}
 			// Calculate rest of bytes to write.
-			mustWrite = min(rest, b.ac32())
+			mustWrite = min(rest, b.ac())
 		}
 	}
 
@@ -193,7 +188,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		length: pl,
 		expire: expire,
 		aid:    startArena.id,
-		lp:     b.queue.ptr(),
+		qp:     b.queue.ptr(),
 	}
 	if e1.expire == 0 {
 		e1.expire = uint32(b.config.Clock.Now().Add(b.config.ExpireInterval).Unix())
@@ -252,8 +247,8 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 		return "", dst, ErrNotFound
 	}
 
-	arenaRest := b.ac32() - arenaOffset
-	if entry.offset+entry.length < b.ac32() {
+	arenaRest := b.ac() - arenaOffset
+	if entry.offset+entry.length < b.ac() {
 		// Good case: entry doesn't share among arenas.
 		dst = append(dst, arena.read(arenaOffset, entry.length)...)
 	} else {
@@ -270,7 +265,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 				return "", dst, ErrEntryCorrupt
 			}
 			arenaOffset = 0
-			arenaRest = min(rest, b.ac32())
+			arenaRest = min(rest, b.ac())
 		}
 	}
 
@@ -312,95 +307,9 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	return p, pl, err
 }
 
-// Perform bulk eviction operation.
-func (b *bucket) bulkEvict() (err error) {
-	if err = b.checkStatus(); err != nil {
-		return
-	}
-
-	var ac, ec int
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
-	defer func() {
-		if b.l() != nil {
-			b.l().Printf("bucket #%d: evict %d entries and free up %d arenas", b.idx, ec, ac)
-		}
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
-	}()
-
-	ac, ec, err = b.bulkEvictLF(false)
-	return
-}
-
-func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
-	err = ErrOK
-	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
-		return
-	}
-
-	defer func() {
-		b.lastEvc = b.nowT()
-	}()
-
-	el := b.elen()
-	if el == 0 {
-		return
-	}
-
-	entry := b.entry
-	now := b.now()
-	_ = entry[el-1]
-	z := sort.Search(int(el), func(i int) bool {
-		return now <= entry[i].expire
-	})
-	if z == 0 {
-		return
-	}
-	ec = z
-
-	// Last arena contains unexpired entries.
-	lo := b.entry[z-1].arena()
-	// Previous arena must contain only expired entries.
-	lo1 := lo.prev()
-
-	if b.config.ExpireListener != nil {
-		// Call expire listener for all expired entries.
-		b.expireRange(z)
-	}
-
-	// Async evict/recycle.
-	var wg sync.WaitGroup
-
-	// Evict all expired entries.
-	wg.Add(1)
-	go func() {
-		b.evictRange(z)
-		wg.Done()
-	}()
-
-	// Recycle arenas.
-	wg.Add(1)
-	go func() {
-		b.queue.recycle(lo1)
-
-		a := b.queue.act().next()
-		for a != nil {
-			if !a.empty() {
-				a.reset()
-				b.mw().Reset(b.ids, b.ac32())
-				ac++
-			}
-			a = a.next()
-		}
-		wg.Done()
-	}()
-
-	wg.Wait()
-
-	return
-}
-
+// Reset bucket data.
+//
+// All allocated data and buffer will keep for further use.
 func (b *bucket) reset() error {
 	if err := b.checkStatus(); err != nil {
 		return err
@@ -420,6 +329,9 @@ func (b *bucket) reset() error {
 	return ErrOK
 }
 
+// Release bucket data.
+//
+// All allocated data (arenas and buffer) will release.
 func (b *bucket) release() error {
 	if err := b.checkStatus(); err != nil {
 		return err
@@ -457,12 +369,12 @@ func (b *bucket) release() error {
 		for a != nil {
 			if a.full() {
 				a.reset()
-				b.mw().Reset(b.ids, b.ac32())
+				b.mw().Reset(b.ids, b.ac())
 			}
 			c++
 			a.release()
-			b.mw().Release(b.ids, b.ac32())
-			b.size.snap(snapRelease, b.ac32())
+			b.mw().Release(b.ids, b.ac())
+			b.size.snap(snapRelease, b.ac())
 			a = a.next()
 		}
 		b.queue.setHead(nil).setAct(nil).setTail(nil)
@@ -473,6 +385,9 @@ func (b *bucket) release() error {
 	return ErrOK
 }
 
+// Check bucket status.
+//
+// Possible errors are: bucket under service or bucket corrupt.
 func (b *bucket) checkStatus() error {
 	if status := atomic.LoadUint32(&b.status); status != bucketStatusActive {
 		if status == bucketStatusService {
@@ -485,41 +400,37 @@ func (b *bucket) checkStatus() error {
 	return ErrOK
 }
 
+// Return timestamp as uint32 value.
 func (b *bucket) now() uint32 {
 	return uint32(b.config.Clock.Now().Unix())
 }
 
+// Return current time.
 func (b *bucket) nowT() time.Time {
 	return b.config.Clock.Now()
 }
 
+// Return length of currently used arenas.
 func (b *bucket) alen() uint32 {
 	return uint32(b.queue.len())
 }
 
+// Return length of collected entries.
 func (b *bucket) elen() uint32 {
 	return uint32(len(b.entry))
 }
 
+// Shorthand metrics writer method.
 func (b *bucket) mw() MetricsWriter {
 	return b.config.MetricsWriter
 }
 
-func (b *bucket) as() MemorySize {
-	return b.config.ArenaCapacity
-}
-
-func (b *bucket) ac32() uint32 {
+// Shorthand arena capacity method.
+func (b *bucket) ac() uint32 {
 	return uint32(b.config.ArenaCapacity)
 }
 
+// Shorthand logger method.
 func (b *bucket) l() Logger {
 	return b.config.Logger
-}
-
-func min(a, b uint32) uint32 {
-	if a < b {
-		return a
-	}
-	return b
 }
