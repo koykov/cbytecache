@@ -233,6 +233,7 @@ func (c *Cache) Close() error {
 	return ErrOK
 }
 
+// Evict expired cache data.
 func (c *Cache) evict() error {
 	return c.bulkExec(c.config.EvictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }

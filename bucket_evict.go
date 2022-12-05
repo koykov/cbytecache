@@ -27,6 +27,7 @@ func (b *bucket) bulkEvict() (err error) {
 	return
 }
 
+// Perform bulc eviction operation on lock-free mode.
 func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	err = ErrOK
 	if !force && b.nowT().Sub(b.lastEvc) < b.config.EvictInterval/10*9 {
@@ -77,7 +78,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	wg.Add(1)
 	go func() {
 		b.queue.recycle(lo1)
-
+		// Reset all arenas after actual.
 		a := b.queue.act().next()
 		for a != nil {
 			if !a.empty() {
@@ -95,6 +96,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	return
 }
 
+// Evict all entries on range [0..z).
 func (b *bucket) evictRange(z int) {
 	el := b.elen()
 	if z < 256 {
@@ -151,6 +153,7 @@ func (b *bucket) evictRange(z int) {
 	}
 }
 
+// Perform evict operation over single entry.
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
 	b.mw().Evict(b.ids)
