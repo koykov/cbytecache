@@ -188,7 +188,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		length: pl,
 		expire: expire,
 		aid:    startArena.id,
-		lp:     b.queue.ptr(),
+		qp:     b.queue.ptr(),
 	}
 	if e1.expire == 0 {
 		e1.expire = uint32(b.config.Clock.Now().Add(b.config.ExpireInterval).Unix())
