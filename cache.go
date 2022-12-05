@@ -241,7 +241,11 @@ func (c *Cache) vacuum() error {
 	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.vacuum() })
 }
 
+// Dump all cache data.
 func (c *Cache) dump() error {
+	if c.config.DumpWriter == nil {
+		return ErrOK
+	}
 	if err := c.bulkExec(c.config.DumpWriteWorkers, "dump", func(b *bucket) error { return b.bulkDump() }); err != nil {
 		return err
 	}
