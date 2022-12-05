@@ -348,3 +348,10 @@ func (c *Cache) mw() MetricsWriter {
 func (c *Cache) l() Logger {
 	return c.config.Logger
 }
+
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
+}

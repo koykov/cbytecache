@@ -45,13 +45,13 @@ func (b *bucket) vacuum() error {
 	for c < r {
 		if !a.released() {
 			a.release()
-			b.mw().Release(b.ids, b.ac32())
+			b.mw().Release(b.ids, b.ac())
 		}
 		tail := a
 		a = a.prev()
 		tail.setNext(nil).setPrev(nil)
 		a.setNext(nil)
-		b.size.snap(snapRelease, b.ac32())
+		b.size.snap(snapRelease, b.ac())
 		c++
 	}
 	b.queue.setTail(a)

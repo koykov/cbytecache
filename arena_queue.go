@@ -23,7 +23,7 @@ func (q *arenaQueue) len() int {
 // Alloc new arena.
 //
 // Search in buf for old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
-func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
+func (q *arenaQueue) alloc(prev *arena, cap uint32) (a *arena) {
 	for i := 0; i < len(q.buf); i++ {
 		if q.buf[i].released() {
 			a = &q.buf[i]
@@ -42,7 +42,7 @@ func (q *arenaQueue) alloc(prev *arena, size MemorySize) (a *arena) {
 		a = &q.buf[q.len()-1]
 	}
 	// Alloc memory.
-	a.h = cbyte.InitHeader(0, int(size))
+	a.h = cbyte.InitHeader(0, int(cap))
 	// Link prev/new arena.
 	a.setPrev(prev)
 	if prev != nil {
