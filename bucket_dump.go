@@ -34,10 +34,6 @@ func (b *bucket) bulkDump() error {
 		return now <= buf[i].expire
 	})
 
-	if z == 0 {
-		return ErrOK
-	}
-
 	_ = buf[el-1]
 	for i := z; i < int(el); i++ {
 		b.dump(&buf[i])

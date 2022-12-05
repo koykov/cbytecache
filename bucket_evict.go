@@ -43,11 +43,11 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 		return
 	}
 
-	entry := b.entry
+	buf := b.entry
 	now := b.now()
-	_ = entry[el-1]
+	_ = buf[el-1]
 	z := sort.Search(int(el), func(i int) bool {
-		return now <= entry[i].expire
+		return now <= buf[i].expire
 	})
 	if z == 0 {
 		return
@@ -55,7 +55,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 	ec = z
 
 	// Last arena contains unexpired entries.
-	lo := b.entry[z-1].arena()
+	lo := buf[z-1].arena()
 	// Previous arena must contain only expired entries.
 	lo1 := lo.prev()
 

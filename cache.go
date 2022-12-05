@@ -238,6 +238,7 @@ func (c *Cache) evict() error {
 	return c.bulkExec(c.config.EvictWorkers, "eviction", func(b *bucket) error { return b.bulkEvict() })
 }
 
+// Vacuum free cache space.
 func (c *Cache) vacuum() error {
 	return c.bulkExec(c.config.VacuumWorkers, "vacuum", func(b *bucket) error { return b.bulkVacuum() })
 }
