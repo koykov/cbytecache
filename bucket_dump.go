@@ -18,6 +18,7 @@ func (b *bucket) bulkDump() error {
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: dump %d entries", b.idx, c)
 		}
+		b.buf.ResetLen()
 		b.mux.Unlock()
 		atomic.StoreUint32(&b.status, bucketStatusActive)
 	}()

@@ -107,7 +107,7 @@ func New(conf *Config) (*Cache, error) {
 		})
 	}
 	// Register dump schedule job.
-	if conf.DumpInterval > 0 {
+	if conf.DumpWriter != nil && conf.DumpInterval > 0 {
 		if conf.DumpWriteWorkers == 0 {
 			conf.DumpWriteWorkers = defaultDumpWriteWorkers
 		}
