@@ -126,9 +126,16 @@ func New(conf *Config) (*Cache, error) {
 		if conf.DumpReadBuffer == 0 {
 			conf.DumpReadBuffer = conf.DumpReadWorkers
 		}
-		if err := c.load(); err != nil && c.l() != nil {
-			c.l().Printf("dump read failed with error %s\n", err.Error())
-		}
+		go func() {
+			lc, err := c.load()
+			if c.l() != nil {
+				if err != nil {
+					c.l().Printf("dump read failed with error %s\n", err.Error())
+				} else {
+					c.l().Printf("read %d entries from dump\n", lc)
+				}
+			}
+		}()
 	}
 
 	return c, ErrOK
@@ -255,7 +262,7 @@ func (c *Cache) dump() error {
 }
 
 // Load dumped data.
-func (c *Cache) load() error {
+func (c *Cache) load() (int, error) {
 	stream := make(chan Entry, c.config.DumpReadBuffer)
 	var wg sync.WaitGroup
 	for i := uint(0); i < c.config.DumpReadWorkers; i++ {
@@ -270,15 +277,18 @@ func (c *Cache) load() error {
 					}
 					h := c.config.Hasher.Sum64(e.Key)
 					bkt := c.buckets[h&c.mask]
+					atomic.StoreUint32(&bkt.status, bucketStatusService)
 					bkt.mux.Lock()
 					_ = bkt.setLF(e.Key, h, e.Body, e.Expire)
 					bkt.mux.Unlock()
-					c.mw().Load()
+					atomic.StoreUint32(&bkt.status, bucketStatusActive)
+					c.mw().Load(bkt.ids)
 				}
 			}
 		}()
 	}
 
+	var lc int
 	for {
 		e, err := c.config.DumpReader.Read()
 		if err == io.EOF {
@@ -286,11 +296,12 @@ func (c *Cache) load() error {
 			break
 		}
 		stream <- e.Copy()
+		lc++
 	}
 
 	wg.Wait()
 
-	return nil
+	return lc, nil
 }
 
 // Perform bulk fn asynchronously.

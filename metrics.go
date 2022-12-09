@@ -29,7 +29,7 @@ type MetricsWriter interface {
 	// NoSpace registers how many writes failed due to no space error.
 	NoSpace(bucket string)
 	// Dump registers how many entries dumped.
-	Dump()
+	Dump(bucket string)
 	// Load registers how many entries loaded from dump.
-	Load()
+	Load(bucket string)
 }
