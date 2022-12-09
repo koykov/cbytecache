@@ -16,7 +16,7 @@ func (DummyMetrics) Expire(_ string)               {}
 func (DummyMetrics) Corrupt(_ string)              {}
 func (DummyMetrics) Collision(_ string)            {}
 func (DummyMetrics) NoSpace(_ string)              {}
-func (DummyMetrics) Dump()                         {}
-func (DummyMetrics) Load()                         {}
+func (DummyMetrics) Dump(_ string)                 {}
+func (DummyMetrics) Load(_ string)                 {}
 
 var dummyMetrics = DummyMetrics{}

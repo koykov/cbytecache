@@ -52,6 +52,6 @@ func (b *bucket) dump(e *entry) {
 	if err != nil {
 		return
 	}
-	_, _ = b.config.DumpWriter.Write(Entry{Key: key, Body: body})
-	b.mw().Dump()
+	_, _ = b.config.DumpWriter.Write(Entry{Key: key, Body: body, Expire: e.expire})
+	b.mw().Dump(b.ids)
 }
