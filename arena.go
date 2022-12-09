@@ -85,7 +85,7 @@ func (a *arena) setPrev(prev *arena) *arena {
 
 // Get previous arena.
 func (a *arena) prev() *arena {
-	if a.p == -1 {
+	if a == nil || a.p == -1 {
 		return nil
 	}
 	q := a.indirectQueue()
@@ -111,7 +111,7 @@ func (a *arena) setNext(next *arena) *arena {
 
 // Get next arena.
 func (a *arena) next() *arena {
-	if a.n == -1 {
+	if a == nil || a.n == -1 {
 		return nil
 	}
 	q := a.indirectQueue()
