@@ -4,21 +4,21 @@ import (
 	"github.com/koykov/cbytecache"
 )
 
-// DumpQueue is a DumpWriter wrapper over enqueuer.
-type DumpQueue struct {
+// Queue is a DumpWriter implementation that forwards entries to the enqueuer.
+type Queue struct {
 	Enqueuer cbytecache.Enqueuer
 }
 
-// NewQueue makes new DumpQueue instance with given enqueuer.
-func NewQueue(enq cbytecache.Enqueuer) (*DumpQueue, error) {
+// NewQueue makes new Queue instance with given enqueuer.
+func NewQueue(enq cbytecache.Enqueuer) (*Queue, error) {
 	if enq == nil {
 		return nil, cbytecache.ErrNoEnqueuer
 	}
-	q := DumpQueue{Enqueuer: enq}
+	q := Queue{Enqueuer: enq}
 	return &q, nil
 }
 
-func (q *DumpQueue) Write(entry cbytecache.Entry) (int, error) {
+func (q *Queue) Write(entry cbytecache.Entry) (int, error) {
 	if q.Enqueuer == nil {
 		return 0, cbytecache.ErrNoEnqueuer
 	}
@@ -26,7 +26,7 @@ func (q *DumpQueue) Write(entry cbytecache.Entry) (int, error) {
 	return cpy.Size(), q.Enqueuer.Enqueue(cpy)
 }
 
-func (q *DumpQueue) Flush() error {
+func (q *Queue) Flush() error {
 	return nil
 }
 
