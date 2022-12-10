@@ -33,3 +33,8 @@ func (e Entry) Copy() Entry {
 	cpy.Expire = e.Expire
 	return cpy
 }
+
+// Size returns entry size in bytes.
+func (e Entry) Size() int {
+	return len(e.Key) + len(e.Body) + 4
+}

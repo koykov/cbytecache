@@ -4,19 +4,21 @@ import (
 	"github.com/koykov/cbytecache"
 )
 
-type ExpireQueue struct {
+// Queue is a Listener implementation that forwards entries to the enqueuer.
+type Queue struct {
 	Enqueuer cbytecache.Enqueuer
 }
 
-func NewQueue(enq cbytecache.Enqueuer) (*ExpireQueue, error) {
+// NewQueue makes new Queue instance with given enqueuer.
+func NewQueue(enq cbytecache.Enqueuer) (*Queue, error) {
 	if enq == nil {
 		return nil, cbytecache.ErrNoEnqueuer
 	}
-	q := ExpireQueue{Enqueuer: enq}
+	q := Queue{Enqueuer: enq}
 	return &q, nil
 }
 
-func (q *ExpireQueue) Listen(entry cbytecache.Entry) error {
+func (q *Queue) Listen(entry cbytecache.Entry) error {
 	if q.Enqueuer == nil {
 		return cbytecache.ErrNoEnqueuer
 	}
