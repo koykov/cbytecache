@@ -4,10 +4,12 @@ import (
 	"github.com/koykov/cbytecache"
 )
 
+// ExpireQueue is a Listener wrapper over enqueuer.
 type ExpireQueue struct {
 	Enqueuer cbytecache.Enqueuer
 }
 
+// NewQueue makes new ExpireQueue instance with given enqueuer.
 func NewQueue(enq cbytecache.Enqueuer) (*ExpireQueue, error) {
 	if enq == nil {
 		return nil, cbytecache.ErrNoEnqueuer
