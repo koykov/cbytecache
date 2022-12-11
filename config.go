@@ -79,6 +79,8 @@ type Config struct {
 	// DumpReadWorkers limits workers count that processes entries comes from DumpReader.
 	// If this param omit defaultDumpReadWorkers (16) will use instead.
 	DumpReadWorkers uint
+	// Load dump data asynchronously.
+	DumpReadAsync bool
 
 	// Metrics writer handler.
 	MetricsWriter MetricsWriter

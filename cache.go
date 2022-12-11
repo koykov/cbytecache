@@ -126,7 +126,7 @@ func New(conf *Config) (*Cache, error) {
 		if conf.DumpReadBuffer == 0 {
 			conf.DumpReadBuffer = conf.DumpReadWorkers
 		}
-		go func() {
+		fn := func() {
 			lc, err := c.load()
 			if c.l() != nil {
 				if err != nil {
@@ -135,7 +135,12 @@ func New(conf *Config) (*Cache, error) {
 					c.l().Printf("read %d entries from dump\n", lc)
 				}
 			}
-		}()
+		}
+		if conf.DumpReadAsync {
+			go fn()
+		} else {
+			fn()
+		}
 	}
 
 	return c, ErrOK
