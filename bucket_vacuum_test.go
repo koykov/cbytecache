@@ -12,7 +12,7 @@ import (
 func TestVacuum(t *testing.T) {
 	const entries = 1e6
 
-	conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+	conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 	conf.Buckets = 1
 	conf.Clock = clock.NewClock()
 	conf.VacuumInterval = time.Minute * 2

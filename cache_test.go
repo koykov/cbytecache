@@ -10,7 +10,7 @@ import (
 
 func TestIO(t *testing.T) {
 	testIO := func(t *testing.T, entries int, verbose bool) {
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 		cache, err := New(conf)
 		if err != nil {
 			t.Fatal(err)

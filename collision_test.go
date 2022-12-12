@@ -12,7 +12,7 @@ func (h constHasher) Sum64(_ string) uint64 {
 }
 
 func TestCollision(t *testing.T) {
-	conf := DefaultConfig(time.Minute, constHasher(1024))
+	conf := DefaultConfig(time.Minute, constHasher(1024), 0)
 	conf.CollisionCheck = true
 	cache, err := New(conf)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 
 func TestExpire(t *testing.T) {
 	t.Run("single", func(t *testing.T) {
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 		conf.Clock = clock.NewClock()
 		cache, err := New(conf)
 		if err != nil {
@@ -41,7 +41,7 @@ func TestExpire(t *testing.T) {
 			expectSize = 0
 		)
 
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 		conf.Clock = clock.NewClock()
 		cache, err := New(conf)
 		if err != nil {

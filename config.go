@@ -96,20 +96,12 @@ func (c *Config) Copy() *Config {
 }
 
 // DefaultConfig makes config with default params.
-func DefaultConfig(expire time.Duration, hasher hash.Hasher) *Config {
+func DefaultConfig(expire time.Duration, hasher hash.Hasher, capacity MemorySize) *Config {
 	c := Config{
+		Capacity:       capacity,
 		Hasher:         hasher,
 		Buckets:        16,
 		ExpireInterval: expire,
 	}
 	return &c
 }
-
-// DefaultConfigWS makes default config with given capacity.
-func DefaultConfigWS(expire time.Duration, hasher hash.Hasher, capacity MemorySize) *Config {
-	c := DefaultConfig(expire, hasher)
-	c.Capacity = capacity
-	return c
-}
-
-var _ = DefaultConfigWS

@@ -17,7 +17,7 @@ import (
 func TestDumper(t *testing.T) {
 	t.Run("write", func(t *testing.T) {
 		var w testDumpWriter
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 		// Writer isn't thread-safe, so use only one bucket and writer worker.
 		conf.Buckets = 1
 		conf.DumpWriter = &w
@@ -46,7 +46,7 @@ func TestDumper(t *testing.T) {
 
 	t.Run("read", func(t *testing.T) {
 		var r testDumpReader
-		conf := DefaultConfig(time.Hour, &fnv.Hasher{})
+		conf := DefaultConfig(time.Hour, &fnv.Hasher{}, 0)
 		// Writer isn't thread-safe, so use only one bucket and writer worker.
 		conf.Buckets = 1
 		conf.DumpReader = &r
