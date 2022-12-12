@@ -7,7 +7,7 @@ import (
 
 func TestConfig(t *testing.T) {
 	t.Run("copy", func(t *testing.T) {
-		conf := DefaultConfig(time.Minute, nil)
+		conf := DefaultConfig(time.Minute, nil, 0)
 		cpy := conf.Copy()
 		conf.ExpireInterval = 30 * time.Second
 		if cpy.ExpireInterval != time.Minute {

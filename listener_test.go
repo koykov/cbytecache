@@ -37,8 +37,6 @@ func (l *countListener) Listen(entry Entry) error {
 	return nil
 }
 
-func (l countListener) Close() error { return nil }
-
 func (l *countListener) stats() (uint32, uint32, uint32, uint32) {
 	return atomic.LoadUint32(&l.k), atomic.LoadUint32(&l.n), atomic.LoadUint32(&l.b), atomic.LoadUint32(&l.c)
 }
@@ -49,7 +47,7 @@ func TestListener(t *testing.T) {
 
 		var l countListener
 
-		conf := DefaultConfig(time.Minute, &fnv.Hasher{})
+		conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
 		conf.Clock = clock.NewClock()
 		conf.ExpireListener = &l
 		cache, err := New(conf)
