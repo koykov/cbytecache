@@ -63,3 +63,20 @@ func TestIO(t *testing.T) {
 	t.Run("100K", func(t *testing.T) { testIO(t, 100000, verbose) })
 	t.Run("1M", func(t *testing.T) { testIO(t, 1000000, verbose) })
 }
+
+func TestDelete(t *testing.T) {
+	conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
+	cache, err := New(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = cache.Set("foobar", getEntryBody(0)); err != nil {
+		t.Fatal(err)
+	}
+	if err = cache.Delete("foobar"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = cache.Get("foobar"); err != ErrNotFound {
+		t.Errorf("error mismatch: need '%s', got '%s'", ErrNotFound.Error(), err.Error())
+	}
+}
