@@ -307,6 +307,21 @@ func (b *bucket) c7n(key string, p []byte) ([]byte, uint32, error) {
 	return p, pl, err
 }
 
+// Delete entry from bucket index.
+//
+// Entry data will keep in the arenas and will
+func (b *bucket) del(h uint64) error {
+	if err := b.checkStatus(); err != nil {
+		return err
+	}
+
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	delete(b.index, h)
+	return nil
+}
+
 // Reset bucket data.
 //
 // All allocated data and buffer will keep for further use.

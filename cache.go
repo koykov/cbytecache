@@ -211,6 +211,16 @@ func (c *Cache) GetTo(dst []byte, key string) ([]byte, error) {
 	return bkt.get(dst, h)
 }
 
+// Delete removes entry from cache.
+func (c *Cache) Delete(key string) error {
+	if err := c.checkCache(cacheStatusActive); err != nil {
+		return err
+	}
+	h := c.config.Hasher.Sum64(key)
+	bkt := c.buckets[h&c.mask]
+	return bkt.del(h)
+}
+
 // Size returns cache size snapshot. Contains total, used and free sizes.
 func (c *Cache) Size() (r CacheSize) {
 	_ = c.buckets[len(c.buckets)-1]
