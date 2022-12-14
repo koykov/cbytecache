@@ -26,4 +26,5 @@ var (
 	ErrBucketCorrupt  = errors.New("cache bucket is corrupted")
 	ErrNoSpace        = errors.New("no space available")
 	ErrNoEnqueuer     = errors.New("no enqueuer provided")
+	ErrNoUnmarshaller = errors.New("no unmarshaller provided")
 )
