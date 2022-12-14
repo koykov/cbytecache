@@ -1,6 +1,7 @@
 package cbytecache
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -75,6 +76,28 @@ func TestDelete(t *testing.T) {
 	}
 	if err = cache.Delete("foobar"); err != nil {
 		t.Fatal(err)
+	}
+	if _, err = cache.Get("foobar"); err != ErrNotFound {
+		t.Errorf("error mismatch: need '%s', got '%s'", ErrNotFound.Error(), err.Error())
+	}
+}
+
+func TestExtract(t *testing.T) {
+	conf := DefaultConfig(time.Minute, &fnv.Hasher{}, 0)
+	cache, err := New(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := getEntryBody(0)
+	if err = cache.Set("foobar", body); err != nil {
+		t.Fatal(err)
+	}
+	var b []byte
+	if b, err = cache.Extract("foobar"); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(b, body) {
+		t.Errorf("entry mismatch: need '%s', got '%s'", string(body), string(b))
 	}
 	if _, err = cache.Get("foobar"); err != ErrNotFound {
 		t.Errorf("error mismatch: need '%s', got '%s'", ErrNotFound.Error(), err.Error())

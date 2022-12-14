@@ -202,13 +202,18 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 }
 
 // Get entry by h hash.
-func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
+func (b *bucket) get(dst []byte, h uint64, del bool) ([]byte, error) {
 	if err := b.checkStatus(); err != nil {
 		return dst, err
 	}
 
-	b.mux.RLock()
-	defer b.mux.RUnlock()
+	if del {
+		b.mux.Lock()
+		defer b.mux.Unlock()
+	} else {
+		b.mux.RLock()
+		defer b.mux.RUnlock()
+	}
 	var (
 		idx uint32
 		ok  bool
@@ -233,6 +238,11 @@ func (b *bucket) get(dst []byte, h uint64) ([]byte, error) {
 	if err == nil {
 		b.mw().Hit(b.ids, b.nowT().Sub(stm))
 	}
+
+	if del {
+		err = b.delLF(h)
+	}
+
 	return dst, err
 }
 
@@ -318,6 +328,11 @@ func (b *bucket) del(h uint64) error {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
+	return b.delLF(h)
+}
+
+// Delete entry in lock-free mode.
+func (b *bucket) delLF(h uint64) error {
 	delete(b.index, h)
 	return nil
 }

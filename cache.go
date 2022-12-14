@@ -208,7 +208,22 @@ func (c *Cache) GetTo(dst []byte, key string) ([]byte, error) {
 	}
 	h := c.config.Hasher.Sum64(key)
 	bkt := c.buckets[h&c.mask]
-	return bkt.get(dst, h)
+	return bkt.get(dst, h, false)
+}
+
+// Extract gets entry bytes by key and remove entry afterward.
+func (c *Cache) Extract(key string) ([]byte, error) {
+	return c.ExtractTo(nil, key)
+}
+
+// ExtractTo gets entry bytes to dst and remove it afterward.
+func (c *Cache) ExtractTo(dst []byte, key string) ([]byte, error) {
+	if err := c.checkCache(cacheStatusActive); err != nil {
+		return dst, err
+	}
+	h := c.config.Hasher.Sum64(key)
+	bkt := c.buckets[h&c.mask]
+	return bkt.get(dst, h, true)
 }
 
 // Delete removes entry from cache.
