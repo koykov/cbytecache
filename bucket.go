@@ -158,13 +158,13 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			}
 			// Switch to the next arena.
 			prev := a
-			if a = a.next(); a != nil {
-				// Next arena is available to use.
-				b.queue.setAct(a)
-				b.mw().Fill(b.ids, b.ac())
-			} else {
-				// Alloc new arena due to no free space.
+			a = a.next()
+			b.queue.setAct(a)
+			b.mw().Fill(b.ids, b.ac())
+			// Alloc new arena if needed.
+			if a == nil {
 				if b.maxCap > 0 && b.alen()*b.ac()+b.ac() > b.maxCap {
+					b.queue.setAct(b.queue.tail())
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
