@@ -139,24 +139,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 	}
 	// Get current arena.
 	a := b.queue.act()
-	// todo make long test of actual arena check
-	// if a == nil {
-	// 	if b.maxCap > 0 && b.alen()*b.ac()+b.ac() > b.maxCap {
-	// 		if b.l() != nil {
-	// 			b.l().Printf("bucket #%d: no space on write", b.idx)
-	// 		}
-	// 		b.mw().NoSpace(b.ids)
-	// 		return ErrNoSpace
-	// 	}
-	// 	tail := b.queue.tail()
-	// 	a = b.queue.alloc(tail, b.ac())
-	// 	b.queue.setAct(a).setTail(a)
-	// 	b.mw().Alloc(b.ids, b.ac())
-	// 	b.size.snap(snapAlloc, b.ac())
-	// }
-	if a == nil {
-		a = b.queue.tail()
-	}
 	startArena := a
 	arenaOffset, arenaRest := a.offset(), a.rest()
 	rest := uint32(len(p))
@@ -176,15 +158,13 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			}
 			// Switch to the next arena.
 			prev := a
-			a = a.next()
-			b.queue.setAct(a)
-			b.mw().Fill(b.ids, b.ac())
-			// Alloc new arena if needed.
-			if a == nil {
+			if a = a.next(); a != nil {
+				// Next arena is available to use.
+				b.queue.setAct(a)
+				b.mw().Fill(b.ids, b.ac())
+			} else {
+				// Alloc new arena due to no free space.
 				if b.maxCap > 0 && b.alen()*b.ac()+b.ac() > b.maxCap {
-					if b.l() != nil {
-						b.l().Printf("bucket #%d: no space on write", b.idx)
-					}
 					b.mw().NoSpace(b.ids)
 					return ErrNoSpace
 				}
