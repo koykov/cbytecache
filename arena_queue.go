@@ -20,6 +20,25 @@ func (q *arenaQueue) len() int {
 	return len(q.buf)
 }
 
+// Get statistics of arenas (total, full and empty counts).
+func (q *arenaQueue) stat() (t, f, e uint32) {
+	l := q.len()
+	if l == 0 {
+		return
+	}
+	_ = q.buf[l-1]
+	for i := 0; i < l; i++ {
+		t++
+		switch {
+		case q.buf[i].full():
+			f++
+		case q.buf[i].empty():
+			e++
+		}
+	}
+	return
+}
+
 // Alloc new arena.
 //
 // Search in buf for old arena, available to reuse (realloc) or create (alloc) new arena and it to the storage.
