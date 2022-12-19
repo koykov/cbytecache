@@ -147,6 +147,14 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		a.write(p)
 	} else {
 		// Arena hasn't enough space - need share entry among arenas.
+		// New arena allocation will need, so check if it's possible.
+		_, full, _ := b.queue.stat()
+		if b.maxCap > 0 && full*b.ac()+b.ac() > b.maxCap {
+			// Allocation denied, thus stop write at all.
+			b.mw().NoSpace(b.ids)
+			return ErrNoSpace
+		}
+		// Share entry among current and next arenas.
 		mustWrite := arenaRest
 		for {
 			// Write entry bytes that fits to arena free space.
@@ -163,11 +171,6 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			b.mw().Fill(b.ids, b.ac())
 			// Alloc new arena if needed.
 			if a == nil {
-				if b.maxCap > 0 && b.alen()*b.ac()+b.ac() > b.maxCap {
-					b.queue.setAct(b.queue.tail())
-					b.mw().NoSpace(b.ids)
-					return ErrNoSpace
-				}
 				a = b.queue.alloc(prev, b.ac())
 				b.mw().Alloc(b.ids, b.ac())
 				prev.setNext(a)
