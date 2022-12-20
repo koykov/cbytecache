@@ -321,8 +321,11 @@ func (c *Cache) load() (int, error) {
 	var lc int
 	for {
 		e, err := c.config.DumpReader.Read()
-		if err == io.EOF {
+		if err != nil {
 			close(stream)
+			if err != io.EOF && c.l() != nil {
+				c.l().Printf("dump load interrupt due to error: %s", err.Error())
+			}
 			break
 		}
 		stream <- e.Copy()
