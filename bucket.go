@@ -228,14 +228,14 @@ func (b *bucket) get(dst []byte, h uint64, del bool) ([]byte, error) {
 		b.mw().Miss(b.ids)
 		return dst, ErrNotFound
 	}
-	entry := &b.entry[idx]
-	if entry.expire < b.now() {
+	e := &b.entry[idx]
+	if e.expire < b.now() {
 		b.mw().Expire(b.ids)
 		return dst, ErrNotFound
 	}
 
 	var err error
-	_, dst, err = b.getLF(dst, entry, b.mw())
+	_, dst, err = b.getLF(dst, e, b.mw())
 	if err == nil {
 		b.mw().Hit(b.ids, b.nowT().Sub(stm))
 	}
@@ -252,8 +252,8 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 	// Get starting arena.
 	arenaOffset := entry.offset
 
-	arena := entry.arena()
-	if arena == nil {
+	a := entry.arena()
+	if a == nil {
 		mw.Miss(b.ids)
 		return "", dst, ErrNotFound
 	}
@@ -261,17 +261,17 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 	arenaRest := b.ac() - arenaOffset
 	if entry.offset+entry.length < b.ac() {
 		// Good case: entry doesn't share among arenas.
-		dst = append(dst, arena.read(arenaOffset, entry.length)...)
+		dst = append(dst, a.read(arenaOffset, entry.length)...)
 	} else {
 		// Walk over arenas and collect entry by parts.
 		rest := entry.length
 		for rest > 0 {
-			dst = append(dst, arena.read(arenaOffset, arenaRest)...)
+			dst = append(dst, a.read(arenaOffset, arenaRest)...)
 			if rest -= arenaRest; rest == 0 {
 				break
 			}
-			arena = arena.next()
-			if arena == nil {
+			a = a.next()
+			if a == nil {
 				mw.Corrupt(b.ids)
 				return "", dst, ErrEntryCorrupt
 			}
@@ -346,12 +346,8 @@ func (b *bucket) reset() error {
 		return err
 	}
 
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
-	defer func() {
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
-	}()
+	b.svcLock()
+	defer b.svcUnlock()
 
 	b.buf.ResetLen()
 	b.evictRange(len(b.entry))
@@ -369,14 +365,12 @@ func (b *bucket) release() error {
 	}
 
 	var c int
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
+	b.svcLock()
 	defer func() {
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: release %d arenas", b.idx, c)
 		}
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
+		b.svcUnlock()
 	}()
 
 	b.buf.Release()
@@ -414,6 +408,18 @@ func (b *bucket) release() error {
 	wg.Wait()
 
 	return ErrOK
+}
+
+// Lock bucket for service operation.
+func (b *bucket) svcLock() {
+	atomic.StoreUint32(&b.status, bucketStatusService)
+	b.mux.Lock()
+}
+
+// Unlock bucket after service operation.
+func (b *bucket) svcUnlock() {
+	b.mux.Unlock()
+	atomic.StoreUint32(&b.status, bucketStatusActive)
 }
 
 // Check bucket status.

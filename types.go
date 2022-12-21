@@ -10,7 +10,7 @@ import (
 
 // Enqueuer is the interface that wraps the basic Enqueue method.
 //
-// Uses for DumpQueue and DumpListener that contains underlying queue.
+// Uses for queue.DumpWriter and queue.Listener that contains underlying queue.
 type Enqueuer interface {
 	Enqueue(interface{}) error
 }

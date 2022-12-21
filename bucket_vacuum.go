@@ -2,7 +2,6 @@ package cbytecache
 
 import (
 	"math"
-	"sync/atomic"
 )
 
 const (
@@ -18,15 +17,13 @@ func (b *bucket) bulkVacuum() error {
 	}
 
 	var c int
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
+	b.svcLock()
 	defer func() {
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: vacuum %d arenas", b.idx, c)
 		}
 		b.lastVac = b.nowT()
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
+		b.svcUnlock()
 	}()
 
 	// Run eviction before dump to evaluate number of arenas possible to vacuum.
