@@ -2,7 +2,6 @@ package cbytecache
 
 import (
 	"sort"
-	"sync/atomic"
 )
 
 // Perform bulk dumping operation.
@@ -12,15 +11,13 @@ func (b *bucket) bulkDump() error {
 	}
 
 	var c int
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
+	b.svcLock()
 	defer func() {
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: dump %d entries", b.idx, c)
 		}
 		b.buf.ResetLen()
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
+		b.svcUnlock()
 	}()
 
 	el := b.elen()

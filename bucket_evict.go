@@ -3,7 +3,6 @@ package cbytecache
 import (
 	"sort"
 	"sync"
-	"sync/atomic"
 )
 
 // Perform bulk eviction operation.
@@ -13,14 +12,12 @@ func (b *bucket) bulkEvict() (err error) {
 	}
 
 	var ac, ec int
-	atomic.StoreUint32(&b.status, bucketStatusService)
-	b.mux.Lock()
+	b.svcLock()
 	defer func() {
 		if b.l() != nil {
 			b.l().Printf("bucket #%d: evict %d entries and free up %d arenas", b.idx, ec, ac)
 		}
-		b.mux.Unlock()
-		atomic.StoreUint32(&b.status, bucketStatusActive)
+		b.svcUnlock()
 	}()
 
 	ac, ec, err = b.bulkEvictLF(false)

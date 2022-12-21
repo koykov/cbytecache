@@ -307,11 +307,9 @@ func (c *Cache) load() (int, error) {
 					}
 					h := c.config.Hasher.Sum64(e.Key)
 					bkt := c.buckets[h&c.mask]
-					atomic.StoreUint32(&bkt.status, bucketStatusService)
-					bkt.mux.Lock()
+					bkt.svcLock()
 					_ = bkt.setLF(e.Key, h, e.Body, e.Expire)
-					bkt.mux.Unlock()
-					atomic.StoreUint32(&bkt.status, bucketStatusActive)
+					bkt.svcUnlock()
 					c.mw().Load(bkt.ids)
 				}
 			}
