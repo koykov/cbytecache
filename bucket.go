@@ -335,6 +335,7 @@ func (b *bucket) del(h uint64) error {
 // Delete entry in lock-free mode.
 func (b *bucket) delLF(h uint64) error {
 	delete(b.index, h)
+	b.mw().Del(b.ids)
 	return nil
 }
 
