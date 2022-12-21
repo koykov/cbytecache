@@ -16,6 +16,8 @@ type MetricsWriter interface {
 	Set(bucket string, dur time.Duration)
 	// Hit registers how many entries reads from cache.
 	Hit(bucket string, dur time.Duration)
+	// Del registers how many entries deletes from cache.
+	Del(bucket string)
 	// Evict registers how many entries evicts from cache.
 	Evict(bucket string)
 	// Miss registers how many reads failed due to not found error.
