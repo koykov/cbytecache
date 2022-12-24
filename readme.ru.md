@@ -221,14 +221,51 @@ type Hasher interface {
 
 ```go
 import (
+	"time"
+
     "github.com/koykov/cbytecache"
     "github.com/koykov/hash/fnv"
     "github.com/stretchr/testify/assert"
 )
 
-cache, _ := cbytecache.New(DefaultConfig(time.Minute, &fnv.Hasher{}, cbytecache.Megabyte * 100))
+cache, _ := cbytecache.New(DefaultConfig(time.Minute, fnv.Hasher{}, cbytecache.Megabyte * 100))
 
 _ = cache.Set("foobar", []byte("entry body bytes ..."))
+entry, _ := cache.Get("foobar")
+assert.Equal(t, entry, []byte("entry body bytes ..."), "entry mismatch")
+```
+
+### Детальная инициализация
+
+```go
+import (
+    "time"
+
+    dumpfs "github.com/koykov/cbcdump/fs"
+    "github.com/koykov/cbytecache"
+    "github.com/koykov/hash/fnv"
+    metrics "github.com/koykov/metrics_writers/cbytecache"
+	"github.com/stretchr/testify/assert"
+)
+
+conf := cbytecache.Config{
+    Capacity: cbytecache.Megabyte * 100,
+    Hasher: fnv.Hasher{},
+    Buckets: 128,
+    ExpireInterval: time.Second * 30,
+    EvictInterval: time.Second * 5,
+    VacuumInterval: time.Second * 10,
+    DumpWriter: &dumpfs.Writer{
+        FilePath: ("dump/example.bin",
+        Buffer:   cbytecache.Megabyte,
+    },
+    DumpReader: &dumpfs.Reader{
+        FilePath: "dump/example.bin",
+    },
+    MetricsWriter: metrics.NewPrometheusMetricsWP("my_cache_key", time.Millisecond),
+}
+cache, _ := cbytecache.New(&conf)
+_ = cache.Set("foobar", []byte("..."))
 entry, _ := cache.Get("foobar")
 assert.Equal(t, entry, []byte("entry body bytes ..."), "entry mismatch")
 ```
