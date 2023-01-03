@@ -60,6 +60,7 @@ func TestListener(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		_ = cache.Delete("key15")
 		// Wait for expiration.
 		conf.Clock.Jump(time.Minute + time.Second)
 		time.Sleep(time.Millisecond * 5)
