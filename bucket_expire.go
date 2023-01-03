@@ -31,6 +31,9 @@ func (b *bucket) expireRange(z int) {
 
 // Perform expire operation over single entry.
 func (b *bucket) expire(e *entry) {
+	if e.invalid() {
+		return
+	}
 	// Get entry data (key, body and expire timestamp).
 	b.buf.ResetLen()
 	_ = b.buf.GrowLen(int(e.length))
