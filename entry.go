@@ -28,13 +28,11 @@ func (e *entry) arena() *arena {
 // Make entry invalid.
 func (e *entry) destroy() {
 	e.hash = 0
-	e.offset, e.length = 0, 0
-	e.expire = 0
 }
 
 // Check entry is invalid.
 //
 // Allows to skip processing of previously deleted entries.
 func (e *entry) invalid() bool {
-	return e.hash == 0 || e.length == 0 || e.expire == 0
+	return e.hash == 0
 }
