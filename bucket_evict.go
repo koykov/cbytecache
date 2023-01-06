@@ -153,6 +153,9 @@ func (b *bucket) evictRange(z int) {
 // Perform evict operation over single entry.
 func (b *bucket) evict(e *entry) {
 	b.size.snap(snapEvict, e.length)
-	b.mw().Evict(b.ids)
+	b.mw().Evict(b.ids, !e.invalid())
+	if e.invalid() {
+		return
+	}
 	delete(b.index, e.hash)
 }

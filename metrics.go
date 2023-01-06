@@ -19,7 +19,8 @@ type MetricsWriter interface {
 	// Del registers how many entries deletes from cache.
 	Del(bucket string)
 	// Evict registers how many entries evicts from cache.
-	Evict(bucket string)
+	// Param alive indicates is entry deleted or not.
+	Evict(bucket string, alive bool)
 	// Miss registers how many reads failed due to not found error.
 	Miss(bucket string)
 	// Expire registers how many entries in cache marks as expired.
