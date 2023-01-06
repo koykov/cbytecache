@@ -43,6 +43,9 @@ func (b *bucket) bulkDump() error {
 
 // Perform dump operation over single entry.
 func (b *bucket) dump(e *entry) {
+	if e.invalid() {
+		return
+	}
 	b.buf.ResetLen()
 	_ = b.buf.GrowLen(int(e.length))
 	key, body, err := b.getLF(b.buf.Bytes()[:0], e, dummyMetrics)
