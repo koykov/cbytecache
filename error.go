@@ -12,7 +12,7 @@ var (
 	ErrBadCache       = errors.New("cache uninitialized, use New()")
 	ErrCacheClosed    = errors.New("cache closed")
 	ErrBadHasher      = errors.New("you must provide hasher helper")
-	ErrBadBuckets     = errors.New("buckets count must be power of two and great than zero")
+	ErrBadBuckets     = errors.New("buckets count must be greater than zero")
 	ErrKeyTooBig      = fmt.Errorf("key overflows maximum %d", MaxKeySize)
 	ErrNotFound       = errors.New("entry not found")
 	ErrEntryExists    = errors.New("entry already exists")

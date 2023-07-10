@@ -29,7 +29,7 @@ func New(conf *Config) (*Cache, error) {
 	if conf.Hasher == nil {
 		return nil, ErrBadHasher
 	}
-	if conf.Buckets == 0 || (conf.Buckets&(conf.Buckets-1)) != 0 {
+	if conf.Buckets == 0 {
 		return nil, ErrBadBuckets
 	}
 	// Check single bucket size.
