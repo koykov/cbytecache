@@ -12,7 +12,6 @@ type Cache struct {
 	config  *Config
 	status  uint32
 	buckets []*bucket
-	mask    uint64
 
 	maxEntrySize uint32
 }
@@ -75,7 +74,6 @@ func New(conf *Config) (*Cache, error) {
 	c := &Cache{
 		config: conf,
 		status: cacheStatusActive,
-		mask:   uint64(conf.Buckets - 1),
 
 		maxEntrySize: uint32(bktCap),
 	}
@@ -172,7 +170,7 @@ func (c *Cache) set(key string, data []byte) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.Hasher.Sum64(key)
-	bkt := c.buckets[h&c.mask]
+	bkt := c.buckets[h%uint64(c.config.Buckets)]
 	return bkt.set(key, h, data)
 }
 
@@ -192,7 +190,7 @@ func (c *Cache) setm(key string, m MarshallerTo) error {
 		return ErrEntryTooBig
 	}
 	h := c.config.Hasher.Sum64(key)
-	bkt := c.buckets[h&c.mask]
+	bkt := c.buckets[h%uint64(c.config.Buckets)]
 	return bkt.setm(key, h, m)
 }
 
@@ -207,7 +205,7 @@ func (c *Cache) GetTo(dst []byte, key string) ([]byte, error) {
 		return dst, err
 	}
 	h := c.config.Hasher.Sum64(key)
-	bkt := c.buckets[h&c.mask]
+	bkt := c.buckets[h%uint64(c.config.Buckets)]
 	return bkt.get(dst, h, false)
 }
 
@@ -222,7 +220,7 @@ func (c *Cache) ExtractTo(dst []byte, key string) ([]byte, error) {
 		return dst, err
 	}
 	h := c.config.Hasher.Sum64(key)
-	bkt := c.buckets[h&c.mask]
+	bkt := c.buckets[h%uint64(c.config.Buckets)]
 	return bkt.get(dst, h, true)
 }
 
@@ -232,7 +230,7 @@ func (c *Cache) Delete(key string) error {
 		return err
 	}
 	h := c.config.Hasher.Sum64(key)
-	bkt := c.buckets[h&c.mask]
+	bkt := c.buckets[h%uint64(c.config.Buckets)]
 	return bkt.del(h)
 }
 
@@ -306,7 +304,7 @@ func (c *Cache) load() (int, error) {
 						return
 					}
 					h := c.config.Hasher.Sum64(e.Key)
-					bkt := c.buckets[h&c.mask]
+					bkt := c.buckets[h%uint64(c.config.Buckets)]
 					bkt.svcLock()
 					_ = bkt.setLF(e.Key, h, e.Body, e.Expire)
 					bkt.svcUnlock()
