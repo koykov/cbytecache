@@ -6,8 +6,8 @@ github.com/koykov/cbyte v1.0.3 h1:TCqUFPKBYirWqkJCQgeBZmw8pYceEEHusIOZMHVSWxg=
 github.com/koykov/cbyte v1.0.3/go.mod h1:UVUQ41KfBZyJc8igZjupM419KImFPgASqDKLZgj/sxE=
 github.com/koykov/cbytebuf v1.2.2 h1:+rzJVPVSTRpmblpj+CdfvmCwZcL23aQrINoLNiIff40=
 github.com/koykov/cbytebuf v1.2.2/go.mod h1:kk5hmkOMXeKj3pzSvVQSaBtXBhuknToZjFgAJfD3qiw=
-github.com/koykov/clock v1.1.1 h1:vbaTsTfXwxCZpndX2IOLwizrPILGpFREQx12lIQ9MMo=
-github.com/koykov/clock v1.1.1/go.mod h1:Y6vE10bSMNpHXuOmq6+cYLsplOMDc/YSC2IMxDmCzVE=
+github.com/koykov/clock v1.1.2 h1:/6s1nSM5RZXR1GbyNuCnMcxDFyeMGp+/w6zoBC1B1xo=
+github.com/koykov/clock v1.1.2/go.mod h1:WC9+dww2TMJMBG9+/0ujYPI0WQgqpLxJoOSwZ12uvK8=
 github.com/koykov/fastconv v1.0.2 h1:csOWpctD9OcpkfI07LEtqtolc4TT8Y6QG3zQvkTmhrQ=
 github.com/koykov/fastconv v1.0.2/go.mod h1:9jOx5KRGe4UKHxGiDw5Yrp/qrqn2cRwH3xvFjqqCE3c=
 github.com/koykov/hash v1.0.0 h1:9fO+G934GvZqdtnpn6rfv5kipxUw9Tix+VswM7heASA=
@@ -16,5 +16,3 @@ github.com/koykov/indirect v1.0.0 h1:3kog1xvVUEB2142K2/AZRhnOKN2N8KNahHHkE+KT7ec
 github.com/koykov/indirect v1.0.0/go.mod h1:2qWC0hrIHIexlKaqPA0VWEa0s2V/qxxNJv7XPncnh2I=
 github.com/koykov/lbpool v1.0.2 h1:PdqlS6KzYVdHP2nBl/TIpYLPYpicHLZvPw/d8ooJSQs=
 github.com/koykov/lbpool v1.0.2/go.mod h1:eSNUenMiTmEWrRV7SyYtnXZvCBXtpRSe6A0+vm/q910=
-github.com/koykov/policy v1.0.0 h1:xETNBdxGA74BRJcRtr7Yf/Gjr5LtyzlAWIquJiRc+kU=
-github.com/koykov/policy v1.0.0/go.mod h1:Qng5vXKz7VFYfpVoBDjIhNnNSUdWWCBeGs95USCuSU4=
