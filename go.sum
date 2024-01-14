@@ -1,6 +1,7 @@
 github.com/koykov/bytealg v1.0.3 h1:za9rkXplGzR3QrHYPS9hrAxRA0+ADtGntAGymmgfIpQ=
 github.com/koykov/bytealg v1.0.3/go.mod h1:OXm+Nppt6hrH+Yrffh6U9Myuj1pB5Vscx4gjJFgTLr8=
 github.com/koykov/byteconv v1.0.0 h1:C8NThxj3Vcmv7f1h384Ti7F9zjVDnOy9AZj9KxTaYqM=
+github.com/koykov/byteconv v1.0.0/go.mod h1:viZknv/akQJrXOQS3bZu2U7TE+gjA03LFQpSsRExZR4=
 github.com/koykov/byteseq v1.0.0 h1:4OUhAUkAC1+7LH5t+ShNI9e05NCAuGh87csVtEkG62I=
 github.com/koykov/byteseq v1.0.0/go.mod h1:JlIJ6P3/ocuGNRbTVyP0NVRS/ExofhOS8g7mtefjefw=
 github.com/koykov/cbyte v1.0.4 h1:qPYgfU5y5G97WtXNPEagBCCd4qaUWbvcgbi88zhEisw=

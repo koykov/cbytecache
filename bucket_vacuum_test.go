@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/koykov/byteconv"
 	"github.com/koykov/clock"
-	"github.com/koykov/fastconv"
 	"github.com/koykov/hash/fnv"
 )
 
@@ -23,7 +23,7 @@ func TestVacuum(t *testing.T) {
 	var key []byte
 	for i := 0; i < entries; i++ {
 		key = makeKey(key, i)
-		if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
+		if err = cache.Set(byteconv.B2S(key), getEntryBody(i)); err != nil {
 			t.Error(err)
 		}
 	}

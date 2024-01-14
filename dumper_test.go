@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/koykov/bytealg"
+	"github.com/koykov/byteconv"
 	"github.com/koykov/clock"
-	"github.com/koykov/fastconv"
 	"github.com/koykov/hash/fnv"
 )
 
@@ -31,7 +31,7 @@ func TestDumper(t *testing.T) {
 		var key []byte
 		for i := 0; i < 10; i++ {
 			key = makeKey(key, i)
-			if err = cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
+			if err = cache.Set(byteconv.B2S(key), getEntryBody(i)); err != nil {
 				t.Error(err)
 			}
 		}
@@ -60,7 +60,7 @@ func TestDumper(t *testing.T) {
 		var key []byte
 		for i := 0; i < 10; i++ {
 			key = makeKey(key, i)
-			body, err := cache.Get(fastconv.B2S(key))
+			body, err := cache.Get(byteconv.B2S(key))
 			if err != nil {
 				t.Error(err)
 				continue
@@ -147,7 +147,7 @@ func (r *testDumpReader) Read() (e Entry, err error) {
 	if _, err = io.ReadAtLeast(r.f, r.buf[off:], int(kl)); err != nil {
 		return
 	}
-	e.Key = fastconv.B2S(r.buf[off:])
+	e.Key = byteconv.B2S(r.buf[off:])
 	off += int(kl)
 
 	r.buf = bytealg.GrowDelta(r.buf, 4)

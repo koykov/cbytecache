@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/koykov/byteconv"
 	"github.com/koykov/cbytebuf"
-	"github.com/koykov/fastconv"
 )
 
 // Cache bucket.
@@ -288,7 +288,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 	if l-2 <= int(kl) {
 		return "", dst, ErrEntryCorrupt
 	}
-	key := fastconv.B2S(dst[l-int(kl)-keySizeBytes : l-keySizeBytes])
+	key := byteconv.B2S(dst[l-int(kl)-keySizeBytes : l-keySizeBytes])
 
 	return key, dst[:l-int(kl)-keySizeBytes], ErrOK
 }
