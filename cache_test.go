@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/koykov/fastconv"
+	"github.com/koykov/byteconv"
 	"github.com/koykov/hash/fnv"
 )
 
@@ -25,7 +25,7 @@ func TestIO(t *testing.T) {
 		for i := 0; i < entries; i++ {
 			w++
 			key = makeKey(key, i)
-			if err := cache.Set(fastconv.B2S(key), getEntryBody(i)); err != nil {
+			if err := cache.Set(byteconv.B2S(key), getEntryBody(i)); err != nil {
 				wf++
 				t.Error(err)
 			}
@@ -34,7 +34,7 @@ func TestIO(t *testing.T) {
 		for i := 0; i < entries; i++ {
 			r++
 			key = makeKey(key, i)
-			if dst, err = cache.GetTo(dst[:0], fastconv.B2S(key)); err != nil {
+			if dst, err = cache.GetTo(dst[:0], byteconv.B2S(key)); err != nil {
 				rf++
 				r404++
 				if err != ErrNotFound {

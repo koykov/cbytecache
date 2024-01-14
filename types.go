@@ -1,7 +1,7 @@
 package cbytecache
 
 import (
-	"github.com/koykov/fastconv"
+	"github.com/koykov/byteconv"
 )
 
 /*
@@ -28,7 +28,7 @@ func (e Entry) Copy() Entry {
 	buf = append(buf, e.Key...)
 	buf = append(buf, e.Body...)
 	var cpy Entry
-	cpy.Key = fastconv.B2S(buf[:len(e.Key)])
+	cpy.Key = byteconv.B2S(buf[:len(e.Key)])
 	cpy.Body = buf[len(e.Key):]
 	cpy.Expire = e.Expire
 	return cpy
