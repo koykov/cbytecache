@@ -343,7 +343,7 @@ func (c *Cache) bulkExecWS(workers uint, op string, fn func(*bucket) error, allo
 	if err := c.checkCache(allow); err != nil {
 		return err
 	}
-	count := min(uint32(workers), uint32(c.config.Buckets))
+	count := umin32(uint32(workers), uint32(c.config.Buckets))
 	bucketQueue := make(chan uint, count)
 	var wg sync.WaitGroup
 
@@ -401,7 +401,7 @@ func (c *Cache) l() Logger {
 	return c.config.Logger
 }
 
-func min(a, b uint32) uint32 {
+func umin32(a, b uint32) uint32 {
 	if a < b {
 		return a
 	}

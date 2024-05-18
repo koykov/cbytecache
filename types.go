@@ -12,7 +12,7 @@ import (
 //
 // Uses for queue.DumpWriter and queue.Listener that contains underlying queue.
 type Enqueuer interface {
-	Enqueue(interface{}) error
+	Enqueue(any) error
 }
 
 // Entry represent external entry object.

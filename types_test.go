@@ -19,7 +19,7 @@ func TestTypes(t *testing.T) {
 
 type testq struct{}
 
-func (q testq) Enqueue(x interface{}) error {
+func (q testq) Enqueue(x any) error {
 	e, ok := x.(Entry)
 	if !ok {
 		return nil

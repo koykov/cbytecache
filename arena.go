@@ -56,12 +56,12 @@ func (a *arena) read(offset, length uint32) []byte {
 }
 
 // Get free space offset (or length of using space).
-func (a arena) offset() uint32 {
+func (a *arena) offset() uint32 {
 	return uint32(a.h.Len)
 }
 
 // Get length of free space in arena.
-func (a arena) rest() uint32 {
+func (a *arena) rest() uint32 {
 	delta := a.h.Cap - a.h.Len
 	if delta <= 0 {
 		return 0

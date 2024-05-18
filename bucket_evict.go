@@ -80,7 +80,7 @@ func (b *bucket) bulkEvictLF(force bool) (ac, ec int, err error) {
 		for a != nil {
 			if !a.empty() {
 				a.reset()
-				b.mw().Reset(b.ids, b.ac())
+				b.mw().Reset(b.ids, b.acap())
 				ac++
 			}
 			a = a.next()

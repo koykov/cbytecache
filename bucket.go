@@ -132,10 +132,10 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 
 	// Init alloc.
 	if b.queue.len() == 0 {
-		a := b.queue.alloc(nil, b.ac())
+		a := b.queue.alloc(nil, b.acap())
 		b.queue.setHead(a).setAct(a)
-		b.mw().Alloc(b.ids, b.ac())
-		b.size.snap(snapAlloc, b.ac())
+		b.mw().Alloc(b.ids, b.acap())
+		b.size.snap(snapAlloc, b.acap())
 	}
 	// Get current arena.
 	a := b.queue.act()
@@ -149,7 +149,7 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 		// Arena hasn't enough space - need share entry among arenas.
 		// New arena allocation will need, so check if it's possible.
 		_, full, _ := b.queue.stat()
-		if b.maxCap > 0 && full*b.ac()+b.ac() > b.maxCap {
+		if b.maxCap > 0 && full*b.acap()+b.acap() > b.maxCap {
 			// Allocation denied, thus stop write at all.
 			b.mw().NoSpace(b.ids)
 			return ErrNoSpace
@@ -168,17 +168,17 @@ func (b *bucket) setLF(key string, h uint64, p []byte, expire uint32) (err error
 			prev := a
 			a = a.next()
 			b.queue.setAct(a)
-			b.mw().Fill(b.ids, b.ac())
+			b.mw().Fill(b.ids, b.acap())
 			// Alloc new arena if needed.
 			if a == nil {
-				a = b.queue.alloc(prev, b.ac())
-				b.mw().Alloc(b.ids, b.ac())
+				a = b.queue.alloc(prev, b.acap())
+				b.mw().Alloc(b.ids, b.acap())
 				prev.setNext(a)
 				b.queue.setAct(a).setTail(a)
-				b.size.snap(snapAlloc, b.ac())
+				b.size.snap(snapAlloc, b.acap())
 			}
 			// Calculate rest of bytes to write.
-			mustWrite = min(rest, b.ac())
+			mustWrite = umin32(rest, b.acap())
 		}
 	}
 
@@ -258,8 +258,8 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 		return "", dst, ErrNotFound
 	}
 
-	arenaRest := b.ac() - arenaOffset
-	if entry.offset+entry.length < b.ac() {
+	arenaRest := b.acap() - arenaOffset
+	if entry.offset+entry.length < b.acap() {
 		// Good case: entry doesn't share among arenas.
 		dst = append(dst, a.read(arenaOffset, entry.length)...)
 	} else {
@@ -276,7 +276,7 @@ func (b *bucket) getLF(dst []byte, entry *entry, mw MetricsWriter) (string, []by
 				return "", dst, ErrEntryCorrupt
 			}
 			arenaOffset = 0
-			arenaRest = min(rest, b.ac())
+			arenaRest = umin32(rest, b.acap())
 		}
 	}
 
@@ -403,12 +403,12 @@ func (b *bucket) release() error {
 		for a != nil {
 			if a.full() {
 				a.reset()
-				b.mw().Reset(b.ids, b.ac())
+				b.mw().Reset(b.ids, b.acap())
 			}
 			c++
 			a.release()
-			b.mw().Release(b.ids, b.ac())
-			b.size.snap(snapRelease, b.ac())
+			b.mw().Release(b.ids, b.acap())
+			b.size.snap(snapRelease, b.acap())
 			a = a.next()
 		}
 		b.queue.setHead(nil).setAct(nil).setTail(nil)
@@ -472,7 +472,7 @@ func (b *bucket) mw() MetricsWriter {
 }
 
 // Shorthand arena capacity method.
-func (b *bucket) ac() uint32 {
+func (b *bucket) acap() uint32 {
 	return uint32(b.config.ArenaCapacity)
 }
 

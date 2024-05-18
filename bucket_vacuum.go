@@ -46,13 +46,13 @@ func (b *bucket) bulkVacuum() error {
 	for c < r {
 		if !a.released() {
 			a.release()
-			b.mw().Release(b.ids, b.ac())
+			b.mw().Release(b.ids, b.acap())
 		}
 		tail := a
 		a = a.prev()
 		tail.setNext(nil).setPrev(nil)
 		a.setNext(nil)
-		b.size.snap(snapRelease, b.ac())
+		b.size.snap(snapRelease, b.acap())
 		c++
 	}
 	// Register last arena as tail.
