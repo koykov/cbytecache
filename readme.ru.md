@@ -233,10 +233,10 @@ type Hasher interface {
 занятой/свободной памяти.
 
 Параметр `MetricsWriter` должен реализовывать одноимённый [интерфейс](https://github.com/koykov/cbytecache/blob/master/metrics.go).
-Представленные методы позволяют покрыть метриками каждое событие внутри кэша. Коробочных версий writer-а нет, но в
-библиотеке `metrics_writers` есть пакет для [cbytecache](https://github.com/koykov/metrics_writers/tree/master/cbytecache),
-содержащий реализации [LogMetrics](https://github.com/koykov/metrics_writers/blob/master/cbytecache/log.go) и
-[PrometheusMetrics](https://github.com/koykov/metrics_writers/blob/master/cbytecache/prometheus.go).
+Представленные методы позволяют покрыть метриками каждое событие внутри кэша. Библиотека содержит две коробочные версии MW:
+* [Log](https://github.com/koykov/cbytecache/tree/master/metrics/log)
+* [Prometheus](https://github.com/koykov/cbytecache/tree/master/metrics/prometheus)
+
 Как следует из названий, первый логирует все события и бесполезен для production, второй же полностью рабочий и пригоден
 для прода. Аналогично, вы можете написать свою реализацию для нужной TSDB.
 
