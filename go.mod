@@ -5,8 +5,8 @@ go 1.18
 require (
 	github.com/koykov/bytealg v1.0.4
 	github.com/koykov/byteconv v1.0.0
-	github.com/koykov/cbyte v1.0.4
-	github.com/koykov/cbytebuf v1.2.3-0.20240504100109-03a93e961460
+	github.com/koykov/cbyte v1.0.5
+	github.com/koykov/cbytebuf v1.2.3
 	github.com/koykov/clock v1.1.3
 	github.com/koykov/hash v1.0.0
 	github.com/koykov/indirect v1.0.1
