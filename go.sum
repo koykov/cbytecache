@@ -4,10 +4,10 @@ github.com/koykov/byteconv v1.0.0 h1:C8NThxj3Vcmv7f1h384Ti7F9zjVDnOy9AZj9KxTaYqM
 github.com/koykov/byteconv v1.0.0/go.mod h1:viZknv/akQJrXOQS3bZu2U7TE+gjA03LFQpSsRExZR4=
 github.com/koykov/byteseq v1.0.1 h1:PbsGtxkUnvrqlwnjNxnRq5FDIvLXJg5CcN9yRuSQY7A=
 github.com/koykov/byteseq v1.0.1/go.mod h1:JlIJ6P3/ocuGNRbTVyP0NVRS/ExofhOS8g7mtefjefw=
-github.com/koykov/cbyte v1.0.4 h1:qPYgfU5y5G97WtXNPEagBCCd4qaUWbvcgbi88zhEisw=
-github.com/koykov/cbyte v1.0.4/go.mod h1:UVUQ41KfBZyJc8igZjupM419KImFPgASqDKLZgj/sxE=
-github.com/koykov/cbytebuf v1.2.3-0.20240504100109-03a93e961460 h1:J1QYXz865z2OQ1yqY5JkR2DGY7pQK9JBDVJV0zMNaWo=
-github.com/koykov/cbytebuf v1.2.3-0.20240504100109-03a93e961460/go.mod h1:dAj8Jm9+gThwaqZsgPXOL0GQ+oJZpGXD/XhPblL8OMA=
+github.com/koykov/cbyte v1.0.5 h1:2u8ASBnz/nWuGXMofHMVzBgBSNx+30+G3sOxXknp8GI=
+github.com/koykov/cbyte v1.0.5/go.mod h1:UVUQ41KfBZyJc8igZjupM419KImFPgASqDKLZgj/sxE=
+github.com/koykov/cbytebuf v1.2.3 h1:EnMd2kKJ64rXLOthynbHuI6nGVT4NEl0Sc8o9YP7b90=
+github.com/koykov/cbytebuf v1.2.3/go.mod h1:BbSfR2VuJG5bsBmSiquoEOxk0wMIiGsTIQGUdjmI19c=
 github.com/koykov/clock v1.1.3 h1:EN7Q3235Wmu0QL2hWYXg5lSJQx0DtENhv6OFgOcGFgA=
 github.com/koykov/clock v1.1.3/go.mod h1:zvFQ390xWoxWl/d0pk3G2NpHdVgbwNqqdDAMS2Vrv4s=
 github.com/koykov/entry v1.0.2 h1:6mZJUt4POGQHRPJ9Iw4GyIZJi9wj2lews3yRRNHfTY4=
